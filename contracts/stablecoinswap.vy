@@ -3,10 +3,10 @@
 name: public(bytes32)                             # Stablecoinswap
 owner: public(address)                            # owner
 decimals: public(uint256)                         # 18
-totalSupply: public(uint256)                      # total number of stablecoins in existence
+totalSupply: public(uint256)                      # total number of contract tokens in existence
 balances: uint256[address]                        # balance of an address
 allowances: (uint256[address])[address]           # allowance of one address on another
-availableTokens: address[bytes[6]]                # addresses of the ERC20 tokens traded on this contract)
+availableTokens: address[bytes[6]]                # addresses of the ERC20 tokens traded on this contract
 currentToken: address(ERC20)
 
 # @notice contract constructor
