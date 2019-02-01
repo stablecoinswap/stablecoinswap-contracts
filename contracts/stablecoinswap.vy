@@ -14,7 +14,7 @@ decimals: public(uint256)                         # 18
 totalSupply: public(uint256)                      # total number of contract tokens in existence
 balances: uint256[address]                        # balance of an address
 allowances: (uint256[address])[address]           # allowance of one address on another
-availableTokens: address[3]                       # addresses of the ERC20 tokens traded on this contract
+availableTokens: public(address[3])               # addresses of the ERC20 tokens traded on this contract
 
 @public
 def __init__(token_addresses: address[3]):
