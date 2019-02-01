@@ -3,35 +3,30 @@ contract ERC20():
     def transferFrom(_from : address, _to : address, _value : uint256) -> bool: modifying
     def balanceOf(_owner : address) -> uint256: constant
 
-# @title Stablecoinwap Interface
+OwnershipTransferred: event({previous_owner: indexed(address), new_owner: indexed(address)})
+LiquidityAdded: event({provider: indexed(address), amount: indexed(uint256)})
+LiquidityRemoved: event({provider: indexed(address), amount: indexed(uint256)})
+Trade: event({trader: indexed(address), token: indexed(address), amount: indexed(uint256)})
 
 name: public(bytes32)                             # Stablecoinswap
-owner: public(address)                            # owner
+owner: public(address)                            # contract owner
 decimals: public(uint256)                         # 18
 totalSupply: public(uint256)                      # total number of contract tokens in existence
 balances: uint256[address]                        # balance of an address
 allowances: (uint256[address])[address]           # allowance of one address on another
 availableTokens: address[3]                       # addresses of the ERC20 tokens traded on this contract
 
-# @notice contract constructor
 @public
-def __init__(_owner: address, token_addresses: address[3]):
-    assert self.owner == ZERO_ADDRESS
-    assert _owner != ZERO_ADDRESS
-
+def __init__(token_addresses: address[3]):
+    self.owner = msg.sender
     self.name = 0x537461626c65636f696e73776170000000000000000000000000000000000000
-    self.owner = _owner
     self.decimals = 18
 
     for i in range(3):
         assert token_addresses[i] != ZERO_ADDRESS
         self.availableTokens[i] = token_addresses[i]
 
-# @notice Deposit stablecoins.
-# @param token_address Address of the stablecoin to deposit.
-# @param amount Amount of tokens to transfer.
-# @param deadline Time after which this transaction can no longer be executed.
-# @return True on success
+# Deposit stablecoins.
 @public
 def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -> bool:
     assert token_address in self.availableTokens
@@ -46,15 +41,12 @@ def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -
         self.totalSupply = amount
 
     assert ERC20(token_address).transferFrom(msg.sender, self, amount)
+    log.LiquidityAdded(msg.sender, amount)
     return True
 
-# @dev Withdraw stablecoins.
-# @param token_address Address of the stablecoin to deposit.
-# @param amount Amount of stablecoins to withdraw.
-# @param deadline Time after which this transaction can no longer be executed.
-# @return True on success
+# Withdraw stablecoins.
 @public
-def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp) -> uint256:
+def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp) -> bool:
     assert token_address in self.availableTokens
     assert amount > 0 and deadline > block.timestamp
     assert self.totalSupply > 0
@@ -63,27 +55,34 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
     self.balances[msg.sender] -= amount
     self.totalSupply = self.totalSupply - amount
     assert ERC20(token_address).transfer(msg.sender, amount)
-    return amount
+    log.LiquidityRemoved(msg.sender, amount)
+    return True
 
-# @dev Check if token is supported or not.
-# @param symbol Symbol of token
 @public
 @constant
 def tokenIsSupported(token_address: address) -> bool:
     return token_address in self.availableTokens
 
-# @dev Return share of total liquidity that owns to user
-# @param user_address Address of owner
+# Return share of total liquidity that owns to user
 @public
 @constant
-def ownership(user_address: address) -> decimal:
+def poolOwnership(user_address: address) -> decimal:
     user_balance: decimal = convert(self.balances[user_address], decimal)
     total_liquidity: decimal = convert(self.totalSupply, decimal)
     share: decimal = user_balance / total_liquidity
     return share
 
+@public
+def transferOwnership(new_owner: address) -> bool:
+    assert new_owner != ZERO_ADDRESS
+    assert msg.sender == self.owner
+    self.owner = new_owner
+    log.OwnershipTransferred(self.owner, new_owner)
+    return True
+
 # ERC20 compatibility for exchange liquidity modified from
 # https://github.com/ethereum/vyper/blob/master/examples/tokens/ERC20.vy
+
 @public
 @constant
 def balanceOf(_owner : address) -> uint256:
