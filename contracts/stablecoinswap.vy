@@ -6,7 +6,7 @@ contract ERC20():
 OwnershipTransferred: event({previous_owner: indexed(address), new_owner: indexed(address)})
 LiquidityAdded: event({provider: indexed(address), amount: indexed(uint256)})
 LiquidityRemoved: event({provider: indexed(address), amount: indexed(uint256)})
-Trade: event({trader: indexed(address), token: indexed(address), amount: indexed(uint256)})
+Trade: event({input_token: indexed(address), output_token: indexed(address), input_amount: indexed(uint256)})
 
 name: public(bytes32)                             # Stablecoinswap
 owner: public(address)                            # contract owner
@@ -49,13 +49,29 @@ def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -
 def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp) -> bool:
     assert token_address in self.availableTokens
     assert amount > 0 and deadline > block.timestamp
-    assert self.totalSupply > 0
-    assert ERC20(token_address).balanceOf(self) >= amount
 
     self.balances[msg.sender] -= amount
-    self.totalSupply = self.totalSupply - amount
+    self.totalSupply -= amount
     assert ERC20(token_address).transfer(msg.sender, amount)
     log.LiquidityRemoved(msg.sender, amount)
+    return True
+
+# Trade one stablecoin for another
+@public
+def swapTokens(input_token: address, output_token: address, input_amount: uint256, limit_price: uint256, deadline: timestamp) -> bool:
+    assert input_token in self.availableTokens and output_token in self.availableTokens
+    assert input_amount > 0 and limit_price > 0
+    assert deadline > block.timestamp
+
+    # this should be pulled from an oracle later on
+    current_price: uint256 = 1000000
+    assert current_price <= limit_price
+    output_amount: uint256 = input_amount * current_price / 1000000 / 1000 * 988
+
+    assert ERC20(input_token).transferFrom(msg.sender, self, input_amount)
+    assert ERC20(output_token).transfer(msg.sender, output_amount)
+
+    log.Trade(input_token, output_token, input_amount)
     return True
 
 @public
