@@ -7,7 +7,7 @@ from tests.constants import (
 
 def test_contract(w3, contract, DAI_token, pad_bytes32):
   assert contract.owner() == w3.eth.defaultAccount
-  assert contract.name() == pad_bytes32('Stablecoinswap')
+  assert contract.name() == b'Stablecoinswap'
   assert contract.decimals() == 18
   assert contract.totalSupply() == 0
   # check used tokens

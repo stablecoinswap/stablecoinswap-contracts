@@ -27,6 +27,9 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, assert_fail):
     DAI_token.transfer(a1, 15*10**18, transact={})
     DAI_token.approve(contract.address, 15*10**18, transact={'from': a1})
     DAI_ADDED = 10**9
+    contract.updatePermission(b"liquidityAddingAllowed", False)
+    # addLiquidity after the previous line should fail but doesn't
+    # possibly becase "liquidityAddingAllowed" value is represented differently inside of the contract
     contract.addLiquidity(DAI_token.address, DAI_ADDED, DEADLINE, transact={'from': a1})
 
     USDC_token.transfer(a2, 15*10**18, transact={})
