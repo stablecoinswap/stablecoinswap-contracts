@@ -1,3 +1,8 @@
+contract ERC20():
+    def transfer(_to : address, _value : uint256) -> bool: modifying
+    def transferFrom(_from : address, _to : address, _value : uint256) -> bool: modifying
+    def balanceOf(_owner : address) -> uint256: constant
+
 # @title Stablecoinwap Interface
 
 name: public(bytes32)                             # Stablecoinswap
@@ -7,7 +12,6 @@ totalSupply: public(uint256)                      # total number of contract tok
 balances: uint256[address]                        # balance of an address
 allowances: (uint256[address])[address]           # allowance of one address on another
 availableTokens: address[3]                       # addresses of the ERC20 tokens traded on this contract
-currentToken: address(ERC20)
 
 # @notice contract constructor
 @public
@@ -31,21 +35,20 @@ def __init__(_owner: address, token_addresses: address[3]):
 @payable
 def addLiquidity(token_addr: address, deadline: timestamp) -> uint256:
     assert token_addr in self.availableTokens
-    self.currentToken = token_addr
     assert deadline > block.timestamp and msg.value > 0
     total_liquidity: uint256 = self.totalSupply
     if total_liquidity > 0:
         liquidity_added: uint256 = as_unitless_number(msg.value)
         self.balances[msg.sender] += liquidity_added
         self.totalSupply = total_liquidity + liquidity_added
-        assert self.currentToken.transferFrom(msg.sender, self, liquidity_added)
+        assert ERC20(token_addr).transferFrom(msg.sender, self, liquidity_added)
         return liquidity_added
     else:
         assert msg.value >= 1000000000
         initial_liquidity: uint256 = as_unitless_number(self.balance)
         self.totalSupply = initial_liquidity
         self.balances[msg.sender] = initial_liquidity
-        assert self.currentToken.transferFrom(msg.sender, self, initial_liquidity)
+        assert ERC20(token_addr).transferFrom(msg.sender, self, initial_liquidity)
         return initial_liquidity
 
 # @dev Withdraw ETH and stablecoins.
@@ -56,16 +59,15 @@ def addLiquidity(token_addr: address, deadline: timestamp) -> uint256:
 @public
 def removeLiquidity(token_addr: address, amount: uint256, deadline: timestamp) -> (uint256(wei), uint256):
     assert token_addr in self.availableTokens
-    self.currentToken = token_addr
     assert amount > 0 and deadline > block.timestamp
     total_liquidity: uint256 = self.totalSupply
     assert total_liquidity > 0
-    assert self.currentToken.balanceOf(self) >= amount
+    assert ERC20(token_addr).balanceOf(self) >= amount
     eth_amount: uint256(wei) = amount * self.balance / total_liquidity
     self.balances[msg.sender] -= amount
     self.totalSupply = total_liquidity - amount
     send(msg.sender, eth_amount)
-    assert self.currentToken.transfer(msg.sender, amount)
+    assert ERC20(token_addr).transfer(msg.sender, amount)
     return eth_amount, amount
 
 # @dev Check if token is supported or not.
