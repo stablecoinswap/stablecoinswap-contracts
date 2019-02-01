@@ -39,14 +39,13 @@ def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -
 
     if self.totalSupply > 0:
         self.balances[msg.sender] += amount
-        self.totalSupply = self.totalSupply + amount
-        assert ERC20(token_address).transferFrom(msg.sender, self, amount)
+        self.totalSupply += amount
     else:
         assert amount >= 1000000000
-        self.totalSupply = amount
         self.balances[msg.sender] = amount
-        assert ERC20(token_address).transferFrom(msg.sender, self, amount)
+        self.totalSupply = amount
 
+    assert ERC20(token_address).transferFrom(msg.sender, self, amount)
     return True
 
 # @dev Withdraw stablecoins.
