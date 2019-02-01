@@ -76,12 +76,14 @@ def swapTokens(input_token: address, output_token: address, input_amount: uint25
 
 @public
 def addTokenSupport(token_address: address) -> bool:
+    assert msg.sender == self.owner
     assert not self.supportedTokens[token_address]
     self.supportedTokens[token_address] = True
     return True
 
 @public
 def removeTokenSupport(token_address: address) -> bool:
+    assert msg.sender == self.owner
     assert self.supportedTokens[token_address]
     del self.supportedTokens[token_address]
     return True
