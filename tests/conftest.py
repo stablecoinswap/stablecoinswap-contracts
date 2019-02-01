@@ -46,7 +46,7 @@ def create_contract(w3, path):
 
 @pytest.fixture
 def DAI_token(w3):
-    deploy = create_contract(w3, 'contracts/test_contracts/ERC20.vy')
+    deploy = create_contract(w3, 'tests/support/ERC20.vy')
     tx_hash = deploy.constructor(b'DAI Test Token', b'DAI', 18, 100000*10**18).transact()
     tx_receipt = w3.eth.getTransactionReceipt(tx_hash)
     return ConciseContract(w3.eth.contract(
@@ -56,7 +56,7 @@ def DAI_token(w3):
 
 @pytest.fixture
 def USDC_token(w3):
-    deploy = create_contract(w3, 'contracts/test_contracts/ERC20.vy')
+    deploy = create_contract(w3, 'tests/support/ERC20.vy')
     tx_hash = deploy.constructor(b'USDC Test Token', b'USDC', 18, 100000*10**18).transact()
     tx_receipt = w3.eth.getTransactionReceipt(tx_hash)
     return ConciseContract(w3.eth.contract(
