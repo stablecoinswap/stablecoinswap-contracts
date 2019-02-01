@@ -29,25 +29,23 @@ def __init__(_owner: address, token_addresses: address[3]):
 
 # @notice Deposit stablecoins.
 # @param token_address Address of the stablecoin to deposit.
+# @param amount Amount of tokens to transfer.
 # @param deadline Time after which this transaction can no longer be executed.
 # @return True on success
 @public
-@payable
-def addLiquidity(token_address: address, deadline: timestamp) -> bool:
+def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -> bool:
     assert token_address in self.availableTokens
-    assert deadline > block.timestamp and msg.value > 0
+    assert deadline > block.timestamp and amount > 0
 
     if self.totalSupply > 0:
-        liquidity_added: uint256 = as_unitless_number(msg.value)
-        self.balances[msg.sender] += liquidity_added
-        self.totalSupply = self.totalSupply + liquidity_added
-        assert ERC20(token_address).transferFrom(msg.sender, self, liquidity_added)
+        self.balances[msg.sender] += amount
+        self.totalSupply = self.totalSupply + amount
+        assert ERC20(token_address).transferFrom(msg.sender, self, amount)
     else:
-        assert msg.value >= 1000000000
-        initial_liquidity: uint256 = as_unitless_number(self.balance)
-        self.totalSupply = initial_liquidity
-        self.balances[msg.sender] = initial_liquidity
-        assert ERC20(token_address).transferFrom(msg.sender, self, initial_liquidity)
+        assert amount >= 1000000000
+        self.totalSupply = amount
+        self.balances[msg.sender] = amount
+        assert ERC20(token_address).transferFrom(msg.sender, self, amount)
 
     return True
 
@@ -57,18 +55,16 @@ def addLiquidity(token_address: address, deadline: timestamp) -> bool:
 # @param deadline Time after which this transaction can no longer be executed.
 # @return True on success
 @public
-def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp) -> (uint256(wei), uint256):
+def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp) -> uint256:
     assert token_address in self.availableTokens
     assert amount > 0 and deadline > block.timestamp
     assert self.totalSupply > 0
     assert ERC20(token_address).balanceOf(self) >= amount
 
-    eth_amount: uint256(wei) = amount * self.balance / self.totalSupply
     self.balances[msg.sender] -= amount
     self.totalSupply = self.totalSupply - amount
-    send(msg.sender, eth_amount)
     assert ERC20(token_address).transfer(msg.sender, amount)
-    return eth_amount, amount
+    return amount
 
 # @dev Check if token is supported or not.
 # @param symbol Symbol of token
