@@ -65,19 +65,9 @@ def USDC_token(w3):
     ))
 
 @pytest.fixture
-def TUSD_token(w3):
-    deploy = create_contract(w3, 'contracts/test_contracts/ERC20.vy')
-    tx_hash = deploy.constructor(b'TUSD Test Token', b'TUSD', 18, 100000*10**18).transact()
-    tx_receipt = w3.eth.getTransactionReceipt(tx_hash)
-    return ConciseContract(w3.eth.contract(
-        address=tx_receipt.contractAddress,
-        abi=deploy.abi
-    ))
-
-@pytest.fixture
-def contract(w3, DAI_token, USDC_token, TUSD_token):
+def contract(w3, DAI_token, USDC_token):
     deploy = create_contract(w3, 'contracts/stablecoinswap.vy')
-    available_tokens = [DAI_token.address, USDC_token.address, TUSD_token.address]
+    available_tokens = [DAI_token.address, USDC_token.address, DAI_token.address]
     tx_hash = deploy.constructor(w3.eth.accounts[0], available_tokens).transact()
     tx_receipt = w3.eth.getTransactionReceipt(tx_hash)
     contract = ConciseContract(w3.eth.contract(
