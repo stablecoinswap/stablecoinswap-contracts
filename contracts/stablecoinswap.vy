@@ -28,54 +28,54 @@ def __init__(_owner: address, token_addresses: address[3]):
         self.availableTokens[i] = token_addresses[i]
 
 # @notice Deposit stablecoins.
-# @param token_symbol Symbol of stablecoin to deposit.
+# @param token_address Address of the stablecoin to deposit.
 # @param deadline Time after which this transaction can no longer be executed.
-# @return The amount of stablecoins added.
+# @return True on success
 @public
 @payable
-def addLiquidity(token_addr: address, deadline: timestamp) -> uint256:
-    assert token_addr in self.availableTokens
+def addLiquidity(token_address: address, deadline: timestamp) -> bool:
+    assert token_address in self.availableTokens
     assert deadline > block.timestamp and msg.value > 0
-    total_liquidity: uint256 = self.totalSupply
-    if total_liquidity > 0:
+
+    if self.totalSupply > 0:
         liquidity_added: uint256 = as_unitless_number(msg.value)
         self.balances[msg.sender] += liquidity_added
-        self.totalSupply = total_liquidity + liquidity_added
-        assert ERC20(token_addr).transferFrom(msg.sender, self, liquidity_added)
-        return liquidity_added
+        self.totalSupply = self.totalSupply + liquidity_added
+        assert ERC20(token_address).transferFrom(msg.sender, self, liquidity_added)
     else:
         assert msg.value >= 1000000000
         initial_liquidity: uint256 = as_unitless_number(self.balance)
         self.totalSupply = initial_liquidity
         self.balances[msg.sender] = initial_liquidity
-        assert ERC20(token_addr).transferFrom(msg.sender, self, initial_liquidity)
-        return initial_liquidity
+        assert ERC20(token_address).transferFrom(msg.sender, self, initial_liquidity)
 
-# @dev Withdraw ETH and stablecoins.
-# @param token_symbol Symbol of stablecoin to withdraw.
-# @param amount Amount of stablecoins withdrawn.
+    return True
+
+# @dev Withdraw stablecoins.
+# @param token_address Address of the stablecoin to deposit.
+# @param amount Amount of stablecoins to withdraw.
 # @param deadline Time after which this transaction can no longer be executed.
-# @return The amount of ETH and stablecoins withdrawn.
+# @return True on success
 @public
-def removeLiquidity(token_addr: address, amount: uint256, deadline: timestamp) -> (uint256(wei), uint256):
-    assert token_addr in self.availableTokens
+def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp) -> (uint256(wei), uint256):
+    assert token_address in self.availableTokens
     assert amount > 0 and deadline > block.timestamp
-    total_liquidity: uint256 = self.totalSupply
-    assert total_liquidity > 0
-    assert ERC20(token_addr).balanceOf(self) >= amount
-    eth_amount: uint256(wei) = amount * self.balance / total_liquidity
+    assert self.totalSupply > 0
+    assert ERC20(token_address).balanceOf(self) >= amount
+
+    eth_amount: uint256(wei) = amount * self.balance / self.totalSupply
     self.balances[msg.sender] -= amount
-    self.totalSupply = total_liquidity - amount
+    self.totalSupply = self.totalSupply - amount
     send(msg.sender, eth_amount)
-    assert ERC20(token_addr).transfer(msg.sender, amount)
+    assert ERC20(token_address).transfer(msg.sender, amount)
     return eth_amount, amount
 
 # @dev Check if token is supported or not.
 # @param symbol Symbol of token
 @public
 @constant
-def tokenIsSupported(token_addr: address) -> bool:
-    return token_addr in self.availableTokens
+def tokenIsSupported(token_address: address) -> bool:
+    return token_address in self.availableTokens
 
 # @dev Return share of total liquidity that owns to user
 # @param user_address Address of owner
