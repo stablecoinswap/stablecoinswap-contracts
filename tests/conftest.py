@@ -45,16 +45,6 @@ def create_contract(w3, path):
     return w3.eth.contract(abi=abi, bytecode=bytecode)
 
 @pytest.fixture
-def exchange_template(w3):
-    deploy = create_contract(w3, 'contracts/example.vy')
-    tx_hash = deploy.constructor().transact()
-    tx_receipt = w3.eth.getTransactionReceipt(tx_hash)
-    return ConciseContract(w3.eth.contract(
-        address=tx_receipt.contractAddress,
-        abi=deploy.abi
-    ))
-
-@pytest.fixture
 def DAI_token(w3):
     deploy = create_contract(w3, 'contracts/test_contracts/ERC20.vy')
     tx_hash = deploy.constructor(b'DAI Test Token', b'DAI', 18, 100000*10**18).transact()
