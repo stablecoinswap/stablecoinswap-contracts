@@ -4,6 +4,9 @@ contract ERC20():
     def balanceOf(_owner : address) -> uint256: constant
 
 OwnershipTransferred: event({previous_owner: indexed(address), new_owner: indexed(address)})
+LiquidityAdded: event({provider: indexed(address), amount: indexed(uint256)})
+LiquidityRemoved: event({provider: indexed(address), amount: indexed(uint256)})
+Trade: event({trader: indexed(address), token: indexed(address), amount: indexed(uint256)})
 
 name: public(bytes32)                             # Stablecoinswap
 owner: public(address)                            # contract owner
@@ -38,11 +41,12 @@ def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -
         self.totalSupply = amount
 
     assert ERC20(token_address).transferFrom(msg.sender, self, amount)
+    log.LiquidityAdded(msg.sender, amount)
     return True
 
 # Withdraw stablecoins.
 @public
-def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp) -> uint256:
+def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp) -> bool:
     assert token_address in self.availableTokens
     assert amount > 0 and deadline > block.timestamp
     assert self.totalSupply > 0
@@ -51,7 +55,8 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
     self.balances[msg.sender] -= amount
     self.totalSupply = self.totalSupply - amount
     assert ERC20(token_address).transfer(msg.sender, amount)
-    return amount
+    log.LiquidityRemoved(msg.sender, amount)
+    return True
 
 @public
 @constant
