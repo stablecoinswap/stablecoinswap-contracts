@@ -6,25 +6,22 @@ decimals: public(uint256)                         # 18
 totalSupply: public(uint256)                      # total number of contract tokens in existence
 balances: uint256[address]                        # balance of an address
 allowances: (uint256[address])[address]           # allowance of one address on another
-availableTokens: address[bytes[6]]                # addresses of the ERC20 tokens traded on this contract
+availableTokens: address[3]                       # addresses of the ERC20 tokens traded on this contract
 currentToken: address(ERC20)
 
 # @notice contract constructor
 @public
-def __init__(_owner: address, dai_address: address, usdc_address: address, tusd_address: address):
+def __init__(_owner: address, token_addresses: address[3]):
     assert self.owner == ZERO_ADDRESS
     assert _owner != ZERO_ADDRESS
 
     self.name = 0x537461626c65636f696e73776170000000000000000000000000000000000000
     self.owner = _owner
     self.decimals = 18
-    # DAI, USDC, TUSD
-    assert dai_address != ZERO_ADDRESS
-    assert usdc_address != ZERO_ADDRESS
-    assert tusd_address != ZERO_ADDRESS
-    self.availableTokens['DAI'] = dai_address
-    self.availableTokens['USDC'] = usdc_address
-    self.availableTokens['TUSD'] = tusd_address
+
+    for i in range(3):
+        assert token_addresses[i] != ZERO_ADDRESS
+        self.availableTokens[i] = token_addresses[i]
 
 # @notice Deposit stablecoins.
 # @param token_symbol Symbol of stablecoin to deposit.
@@ -32,9 +29,9 @@ def __init__(_owner: address, dai_address: address, usdc_address: address, tusd_
 # @return The amount of stablecoins added.
 @public
 @payable
-def addLiquidity(token_symbol: bytes[6], deadline: timestamp) -> uint256:
-    assert self.availableTokens[token_symbol] != ZERO_ADDRESS
-    self.currentToken = self.availableTokens[token_symbol]
+def addLiquidity(token_addr: address, deadline: timestamp) -> uint256:
+    assert token_addr in self.availableTokens
+    self.currentToken = token_addr
     assert deadline > block.timestamp and msg.value > 0
     total_liquidity: uint256 = self.totalSupply
     if total_liquidity > 0:
@@ -57,9 +54,9 @@ def addLiquidity(token_symbol: bytes[6], deadline: timestamp) -> uint256:
 # @param deadline Time after which this transaction can no longer be executed.
 # @return The amount of ETH and stablecoins withdrawn.
 @public
-def removeLiquidity(token_symbol: bytes[6], amount: uint256, deadline: timestamp) -> (uint256(wei), uint256):
-    assert self.availableTokens[token_symbol] != ZERO_ADDRESS
-    self.currentToken = self.availableTokens[token_symbol]
+def removeLiquidity(token_addr: address, amount: uint256, deadline: timestamp) -> (uint256(wei), uint256):
+    assert token_addr in self.availableTokens
+    self.currentToken = token_addr
     assert amount > 0 and deadline > block.timestamp
     total_liquidity: uint256 = self.totalSupply
     assert total_liquidity > 0
@@ -75,8 +72,8 @@ def removeLiquidity(token_symbol: bytes[6], amount: uint256, deadline: timestamp
 # @param symbol Symbol of token
 @public
 @constant
-def tokenIsSupported(symbol: bytes[6]) -> bool:
-    return self.availableTokens[symbol] != ZERO_ADDRESS
+def tokenIsSupported(token_addr: address) -> bool:
+    return token_addr in self.availableTokens
 
 # @dev Return share of total liquidity that owns to user
 # @param user_address Address of owner
