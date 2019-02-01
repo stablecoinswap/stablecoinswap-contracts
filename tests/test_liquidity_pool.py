@@ -1,15 +1,12 @@
 from tests.constants import (
-    INITIAL_ETH,
-    DEADLINE,
+    DEADLINE
 )
 
 def test_initial_balances(w3, contract):
     a0, a1 = w3.eth.accounts[:2]
     # user
     assert contract.balanceOf(a1) == 0
-    assert w3.eth.getBalance(a1) == INITIAL_ETH
     # contract
-    assert w3.eth.getBalance(contract.address) == 0
     assert contract.totalSupply() == 0
 
 def test_initial_liquidity(w3, contract, DAI_token, assert_fail):
@@ -23,8 +20,7 @@ def test_initial_liquidity(w3, contract, DAI_token, assert_fail):
     contract.addLiquidity(DAI_token.address, DAI_ADDED, DEADLINE, transact={'from': a1})
     assert contract.totalSupply() == DAI_ADDED
     assert contract.balanceOf(a1) == DAI_ADDED
-    assert contract.ownership(a1) == 1.0
-    assert w3.eth.getBalance(contract.address) == 0
+    assert contract.poolOwnership(a1) == 1.0
 
 def test_liquidity_pool(w3, contract, DAI_token, USDC_token, assert_fail):
     a0, a1, a2 = w3.eth.accounts[:3]
@@ -41,9 +37,8 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, assert_fail):
     assert contract.totalSupply() == DAI_ADDED + USDC_ADDED
     assert contract.balanceOf(a1) == DAI_ADDED
     assert contract.balanceOf(a2) == USDC_ADDED
-    assert contract.ownership(a1) == 0.25
-    assert contract.ownership(a2) == 0.75
-    assert w3.eth.getBalance(contract.address) == 0
+    assert contract.poolOwnership(a1) == 0.25
+    assert contract.poolOwnership(a2) == 0.75
 
     # deadline < block.timestamp
     assert_fail(lambda: contract.addLiquidity(DAI_token.address, DAI_ADDED, 1, transact={'from': a1}))
@@ -55,8 +50,8 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, assert_fail):
     contract.transfer(a1, TRANSFERRED_AMOUNT, transact={'from': a2})
     assert contract.balanceOf(a1) == DAI_ADDED + TRANSFERRED_AMOUNT
     assert contract.balanceOf(a2) == USDC_ADDED - TRANSFERRED_AMOUNT
-    assert contract.ownership(a1) == 0.5
-    assert contract.ownership(a2) == 0.5
+    assert contract.poolOwnership(a1) == 0.5
+    assert contract.poolOwnership(a2) == 0.5
     assert DAI_token.balanceOf(contract.address) == DAI_ADDED
     assert USDC_token.balanceOf(contract.address) == USDC_ADDED
 
@@ -70,15 +65,14 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, assert_fail):
     # First and second liquidity providers remove their remaining liquidity
     contract.removeLiquidity(DAI_token.address, DAI_ADDED, DEADLINE, transact={'from': a2})
     contract.removeLiquidity(USDC_token.address, USDC_ADDED - TRANSFERRED_AMOUNT - DAI_ADDED, DEADLINE, transact={'from': a2})
-    assert contract.ownership(a2) == 0
-    assert contract.ownership(a1) == 1
+    assert contract.poolOwnership(a2) == 0
+    assert contract.poolOwnership(a1) == 1
     contract.removeLiquidity(USDC_token.address, DAI_ADDED + TRANSFERRED_AMOUNT, DEADLINE, transact={'from': a1})
     assert contract.totalSupply() == 0
     assert contract.balanceOf(a1) == 0
     assert contract.balanceOf(a2) == 0
     assert USDC_token.balanceOf(a1) == DAI_ADDED + TRANSFERRED_AMOUNT
     assert DAI_token.balanceOf(a2) == DAI_ADDED
-    assert w3.eth.getBalance(contract.address) == 0
     assert DAI_token.balanceOf(contract.address) == 0
     assert USDC_token.balanceOf(contract.address) == 0
 
