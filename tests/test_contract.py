@@ -11,5 +11,5 @@ def test_contract(w3, contract, DAI_token, pad_bytes32):
   assert contract.decimals() == 18
   assert contract.totalSupply() == 0
   # check used tokens
-  assert contract.tokenIsSupported(DAI_token.address)
-  assert not contract.tokenIsSupported(w3.eth.accounts[1])
+  assert contract.supportedTokens(DAI_token.address)
+  assert not contract.supportedTokens(w3.eth.accounts[1])

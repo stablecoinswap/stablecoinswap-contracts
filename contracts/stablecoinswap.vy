@@ -14,7 +14,7 @@ decimals: public(uint256)                         # 18
 totalSupply: public(uint256)                      # total number of contract tokens in existence
 balances: uint256[address]                        # balance of an address
 allowances: (uint256[address])[address]           # allowance of one address on another
-availableTokens: public(address[3])               # addresses of the ERC20 tokens traded on this contract
+supportedTokens: public(bool[address])                    # addresses of the ERC20 tokens traded on this contract
 
 @public
 def __init__(token_addresses: address[3]):
@@ -24,12 +24,12 @@ def __init__(token_addresses: address[3]):
 
     for i in range(3):
         assert token_addresses[i] != ZERO_ADDRESS
-        self.availableTokens[i] = token_addresses[i]
+        self.supportedTokens[token_addresses[i]] = True
 
 # Deposit stablecoins.
 @public
 def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -> bool:
-    assert token_address in self.availableTokens
+    assert self.supportedTokens[token_address]
     assert deadline > block.timestamp and amount > 0
 
     if self.totalSupply > 0:
@@ -47,7 +47,7 @@ def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -
 # Withdraw stablecoins.
 @public
 def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp) -> bool:
-    assert token_address in self.availableTokens
+    assert self.supportedTokens[token_address]
     assert amount > 0 and deadline > block.timestamp
 
     self.balances[msg.sender] -= amount
@@ -59,7 +59,7 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
 # Trade one stablecoin for another
 @public
 def swapTokens(input_token: address, output_token: address, input_amount: uint256, limit_price: uint256, deadline: timestamp) -> bool:
-    assert input_token in self.availableTokens and output_token in self.availableTokens
+    assert self.supportedTokens[input_token] and self.supportedTokens[output_token]
     assert input_amount > 0 and limit_price > 0
     assert deadline > block.timestamp
 
@@ -75,9 +75,16 @@ def swapTokens(input_token: address, output_token: address, input_amount: uint25
     return True
 
 @public
-@constant
-def tokenIsSupported(token_address: address) -> bool:
-    return token_address in self.availableTokens
+def addTokenSupport(token_address: address) -> bool:
+    assert not self.supportedTokens[token_address]
+    self.supportedTokens[token_address] = True
+    return True
+
+@public
+def removeTokenSupport(token_address: address) -> bool:
+    assert self.supportedTokens[token_address]
+    del self.supportedTokens[token_address]
+    return True
 
 # Return share of total liquidity that owns to user
 @public
