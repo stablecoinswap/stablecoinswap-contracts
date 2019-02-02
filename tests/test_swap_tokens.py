@@ -17,7 +17,7 @@ def test_swap_tokens(w3, contract, DAI_token, USDC_token, assert_fail):
 
     assert contract.inputTokens(DAI_token.address)
     assert contract.outputTokens(USDC_token.address)
-    # we haven't enough output tokens
+    # we don't have enough output tokens
     assert_fail(lambda: contract.swapTokens(DAI_token.address, USDC_token.address, INPUT_AMOUNT, PRICE_LIMIT, DEADLINE, transact={'from': user_address}))
 
     contract.addLiquidity(USDC_token.address, USDC_ADDED, DEADLINE, transact={'from': w3.eth.defaultAccount})
