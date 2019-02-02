@@ -4,16 +4,17 @@ from tests.constants import (
 
 def test_swap_tokens(w3, contract, DAI_token, USDC_token, assert_fail):
     user_address = w3.eth.accounts[1]
-    DAI_token.transfer(user_address, 15*10**18, transact={})
-    DAI_token.approve(contract.address, 15*10**18, transact={'from': user_address})
-    USDC_token.transfer(w3.eth.defaultAccount, 15*10**18, transact={})
-    USDC_token.approve(contract.address, 15*10**18, transact={'from': w3.eth.defaultAccount})
 
     INPUT_AMOUNT = 10000
     SWAP_FEE = INPUT_AMOUNT * 0.002
     OUTPUT_AMOUNT = INPUT_AMOUNT - SWAP_FEE
     PRICE_LIMIT = 1000000
     USDC_ADDED = 1000000000
+
+    DAI_token.transfer(user_address, 2*INPUT_AMOUNT, transact={})
+    DAI_token.approve(contract.address, 2*INPUT_AMOUNT, transact={'from': user_address})
+    USDC_token.transfer(w3.eth.defaultAccount, USDC_ADDED, transact={})
+    USDC_token.approve(contract.address, USDC_ADDED, transact={'from': w3.eth.defaultAccount})
 
     assert contract.inputTokens(DAI_token.address)
     assert contract.outputTokens(USDC_token.address)
