@@ -15,8 +15,8 @@ decimals: public(uint256)                         # 18
 totalSupply: public(uint256)                      # total number of contract tokens in existence
 balances: uint256[address]                        # balance of an address
 allowances: (uint256[address])[address]           # allowance of one address on another
-inputTokens: public(bool[address])                # addresses of the ERC20 tokens allowed to transfer into this contract
-outputTokens: public(bool[address])               # addresses of the ERC20 tokens allowed to transfer out of this contract
+inputTokens: public(address[1000])                # addresses of the ERC20 tokens allowed to transfer into this contract
+outputTokens: public(address[1000])               # addresses of the ERC20 tokens allowed to transfer out of this contract
 permissions: public(bool[bytes[32]])              # pause / resume contract functions
 
 @public
@@ -30,13 +30,13 @@ def __init__(token_addresses: address[3]):
 
     for i in range(3):
         assert token_addresses[i] != ZERO_ADDRESS
-        self.inputTokens[token_addresses[i]] = True
-        self.outputTokens[token_addresses[i]] = True
+        self.inputTokens[i] = token_addresses[i]
+        self.outputTokens[i] = token_addresses[i]
 
 # Deposit stablecoins.
 @public
 def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -> bool:
-    assert self.inputTokens[token_address]
+    assert token_address in self.inputTokens
     assert deadline > block.timestamp and amount > 0
     assert self.permissions["liquidityAddingAllowed"]
 
@@ -68,7 +68,7 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
 # Trade one stablecoin for another
 @public
 def swapTokens(input_token: address, output_token: address, input_amount: uint256, limit_price: uint256, deadline: timestamp) -> bool:
-    assert self.inputTokens[input_token] and self.outputTokens[output_token]
+    assert input_token in self.inputTokens and output_token in self.outputTokens
     assert input_amount > 0 and limit_price > 0
     assert deadline > block.timestamp
     assert self.permissions["tradingAllowed"]
@@ -87,9 +87,33 @@ def swapTokens(input_token: address, output_token: address, input_amount: uint25
 @public
 def updateInputToken(token_address: address, allowed: bool) -> bool:
     assert msg.sender == self.owner
-    assert not self.inputTokens[token_address] == allowed
-    self.inputTokens[token_address] = allowed
+
+    if allowed:
+        assert not token_address in self.inputTokens
+        self.inputTokens[indexOfFirstEmptyElement(self.inputTokens)] = address
+    else:
+        assert token_address in self.inputTokens
+        self.inputTokens[findElementIndex(self.inputTokens, address)] = None
+
     return True
+
+@private
+@constant
+def indexOfFirstEmptyElement(list: address[1000]) -> uint256:
+    index: uint256 = 0
+    for i in range(1000):
+        if list[i] == ZERO_ADDRESS:
+            index = i
+    return index
+
+@private
+@constant
+def findElementIndex(list: address[1000], address: address) -> uint256:
+    index: uint256 = 0
+    for i in range(1000):
+        if list[i] == address:
+            index = i
+    return index
 
 @public
 def updateOutputToken(token_address: address, allowed: bool) -> bool:
