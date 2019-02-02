@@ -76,8 +76,9 @@ def swapTokens(input_token: address, output_token: address, input_amount: uint25
     # this should be pulled from an oracle later on
     current_price: uint256 = 1000000
     assert current_price <= limit_price
-    output_amount: uint256 = input_amount * current_price / 1000000 / 1000 * 988
+    output_amount: uint256 = input_amount * current_price / 1000000 / 1000 * 998
 
+    assert ERC20(output_token).balanceOf(self) >= output_amount
     assert ERC20(input_token).transferFrom(msg.sender, self, input_amount)
     assert ERC20(output_token).transfer(msg.sender, output_amount)
 
