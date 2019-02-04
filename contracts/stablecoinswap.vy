@@ -3,6 +3,10 @@ contract ERC20():
     def transferFrom(_from : address, _to : address, _value : uint256) -> bool: modifying
     def balanceOf(_owner : address) -> uint256: constant
 
+# ERC20 events
+Transfer: event({_from: indexed(address), _to: indexed(address), _value: uint256})
+Approval: event({_owner: indexed(address), _spender: indexed(address), _value: uint256})
+
 OwnershipTransferred: event({previous_owner: indexed(address), new_owner: indexed(address)})
 LiquidityAdded: event({provider: indexed(address), amount: indexed(uint256)})
 LiquidityRemoved: event({provider: indexed(address), amount: indexed(uint256)})
@@ -123,9 +127,6 @@ def transferOwnership(new_owner: address) -> bool:
     log.OwnershipTransferred(self.owner, new_owner)
     return True
 
-# ERC20 compatibility for exchange liquidity modified from
-# https://github.com/ethereum/vyper/blob/master/examples/tokens/ERC20.vy
-
 @public
 @constant
 def balanceOf(_owner : address) -> uint256:
@@ -135,6 +136,7 @@ def balanceOf(_owner : address) -> uint256:
 def transfer(_to : address, _value : uint256) -> bool:
     self.balances[msg.sender] -= _value
     self.balances[_to] += _value
+    log.Transfer(msg.sender, _to, _value)
     return True
 
 @public
@@ -142,11 +144,13 @@ def transferFrom(_from : address, _to : address, _value : uint256) -> bool:
     self.balances[_from] -= _value
     self.balances[_to] += _value
     self.allowances[_from][msg.sender] -= _value
+    log.Transfer(_from, _to, _value)
     return True
 
 @public
 def approve(_spender : address, _value : uint256) -> bool:
     self.allowances[msg.sender][_spender] = _value
+    log.Approval(msg.sender, msg.sender, _value)
     return True
 
 @public
