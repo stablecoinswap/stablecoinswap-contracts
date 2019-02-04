@@ -13,11 +13,11 @@ name: public(bytes[32])                           # Stablecoinswap
 owner: public(address)                            # contract owner
 decimals: public(uint256)                         # 18
 totalSupply: public(uint256)                      # total number of contract tokens in existence
-balances: uint256[address]                        # balance of an address
-allowances: (uint256[address])[address]           # allowance of one address on another
-inputTokens: public(bool[address])                # addresses of the ERC20 tokens allowed to transfer into this contract
-outputTokens: public(bool[address])               # addresses of the ERC20 tokens allowed to transfer out of this contract
-permissions: public(bool[bytes[32]])              # pause / resume contract functions
+balances: map(address, uint256)                   # balance of an address
+allowances: map(address, map(address, uint256))   # allowance of one address on another
+inputTokens: public(map(address, bool))           # addresses of the ERC20 tokens allowed to transfer into this contract
+outputTokens: public(map(address, bool))          # addresses of the ERC20 tokens allowed to transfer out of this contract
+permissions: public(map(bytes[32], bool))         # pause / resume contract functions
 
 @public
 def __init__(token_addresses: address[3]):
@@ -48,7 +48,7 @@ def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -
         self.balances[msg.sender] = amount
         self.totalSupply = amount
 
-    assert ERC20(token_address).transferFrom(msg.sender, self, amount)
+    ERC20(token_address).transferFrom(msg.sender, self, amount)
     log.LiquidityAdded(msg.sender, amount)
     return True
 
@@ -61,7 +61,7 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
 
     self.balances[msg.sender] -= amount
     self.totalSupply -= amount
-    assert ERC20(token_address).transfer(msg.sender, amount)
+    ERC20(token_address).transfer(msg.sender, amount)
     log.LiquidityRemoved(msg.sender, amount)
     return True
 
@@ -79,8 +79,8 @@ def swapTokens(input_token: address, output_token: address, input_amount: uint25
     output_amount: uint256 = input_amount * current_price / 1000000 / 1000 * 998
 
     assert ERC20(output_token).balanceOf(self) >= output_amount
-    assert ERC20(input_token).transferFrom(msg.sender, self, input_amount)
-    assert ERC20(output_token).transfer(msg.sender, output_amount)
+    ERC20(input_token).transferFrom(msg.sender, self, input_amount)
+    ERC20(output_token).transfer(msg.sender, output_amount)
 
     log.Trade(input_token, output_token, input_amount)
     return True
