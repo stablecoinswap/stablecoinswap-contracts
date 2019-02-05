@@ -3,6 +3,10 @@ contract ERC20():
     def transferFrom(_from : address, _to : address, _value : uint256) -> bool: modifying
     def balanceOf(_owner : address) -> uint256: constant
 
+# ERC20 events
+Transfer: event({_from: indexed(address), _to: indexed(address), _value: uint256})
+Approval: event({_owner: indexed(address), _spender: indexed(address), _value: uint256})
+
 OwnershipTransferred: event({previous_owner: indexed(address), new_owner: indexed(address)})
 LiquidityAdded: event({provider: indexed(address), amount: indexed(uint256)})
 LiquidityRemoved: event({provider: indexed(address), amount: indexed(uint256)})
@@ -13,11 +17,11 @@ name: public(bytes[32])                           # Stablecoinswap
 owner: public(address)                            # contract owner
 decimals: public(uint256)                         # 18
 totalSupply: public(uint256)                      # total number of contract tokens in existence
-balances: uint256[address]                        # balance of an address
-allowances: (uint256[address])[address]           # allowance of one address on another
-inputTokens: public(bool[address])                # addresses of the ERC20 tokens allowed to transfer into this contract
-outputTokens: public(bool[address])               # addresses of the ERC20 tokens allowed to transfer out of this contract
-permissions: public(bool[bytes[32]])              # pause / resume contract functions
+balances: map(address, uint256)                   # balance of an address
+allowances: map(address, map(address, uint256))   # allowance of one address on another
+inputTokens: public(map(address, bool))           # addresses of the ERC20 tokens allowed to transfer into this contract
+outputTokens: public(map(address, bool))          # addresses of the ERC20 tokens allowed to transfer out of this contract
+permissions: public(map(bytes[32], bool))         # pause / resume contract functions
 
 @public
 def __init__(token_addresses: address[3]):
@@ -48,7 +52,8 @@ def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -
         self.balances[msg.sender] = amount
         self.totalSupply = amount
 
-    assert ERC20(token_address).transferFrom(msg.sender, self, amount)
+    transferFromResult: bool = ERC20(token_address).transferFrom(msg.sender, self, amount)
+    assert transferFromResult
     log.LiquidityAdded(msg.sender, amount)
     return True
 
@@ -61,7 +66,8 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
 
     self.balances[msg.sender] -= amount
     self.totalSupply -= amount
-    assert ERC20(token_address).transfer(msg.sender, amount)
+    transferResult: bool = ERC20(token_address).transfer(msg.sender, amount)
+    assert transferResult
     log.LiquidityRemoved(msg.sender, amount)
     return True
 
@@ -78,9 +84,10 @@ def swapTokens(input_token: address, output_token: address, input_amount: uint25
     assert current_price <= limit_price
     output_amount: uint256 = input_amount * current_price / 1000000 / 1000 * 998
 
-    assert ERC20(output_token).balanceOf(self) >= output_amount
-    assert ERC20(input_token).transferFrom(msg.sender, self, input_amount)
-    assert ERC20(output_token).transfer(msg.sender, output_amount)
+    transferFromResult: bool = ERC20(input_token).transferFrom(msg.sender, self, input_amount)
+    assert transferFromResult
+    transferResult: bool = ERC20(output_token).transfer(msg.sender, output_amount)
+    assert transferResult
 
     log.Trade(input_token, output_token, input_amount)
     return True
@@ -123,9 +130,6 @@ def transferOwnership(new_owner: address) -> bool:
     log.OwnershipTransferred(self.owner, new_owner)
     return True
 
-# ERC20 compatibility for exchange liquidity modified from
-# https://github.com/ethereum/vyper/blob/master/examples/tokens/ERC20.vy
-
 @public
 @constant
 def balanceOf(_owner : address) -> uint256:
@@ -135,6 +139,7 @@ def balanceOf(_owner : address) -> uint256:
 def transfer(_to : address, _value : uint256) -> bool:
     self.balances[msg.sender] -= _value
     self.balances[_to] += _value
+    log.Transfer(msg.sender, _to, _value)
     return True
 
 @public
@@ -142,11 +147,13 @@ def transferFrom(_from : address, _to : address, _value : uint256) -> bool:
     self.balances[_from] -= _value
     self.balances[_to] += _value
     self.allowances[_from][msg.sender] -= _value
+    log.Transfer(_from, _to, _value)
     return True
 
 @public
 def approve(_spender : address, _value : uint256) -> bool:
     self.allowances[msg.sender][_spender] = _value
+    log.Approval(msg.sender, msg.sender, _value)
     return True
 
 @public
