@@ -36,44 +36,46 @@ def pad_bytes32():
     return pad_bytes32
 
 # @pytest.fixture
-def create_contract(w3, path):
+def create_contract(w3, path, *args):
     wd = os.path.dirname(os.path.realpath(__file__))
     with open(os.path.join(wd, os.pardir, path)) as f:
         source = f.read()
-    bytecode = '0x' + compiler.compile(source).hex()
-    abi = compiler.mk_full_signature(source)
-    return w3.eth.contract(abi=abi, bytecode=bytecode)
+    out = compiler.compile_code(source, ['abi', 'bytecode'])
+    abi = out['abi']
+    bytecode = out['bytecode']
+
+    contract = w3.eth.contract(abi=abi, bytecode=bytecode)
+    deploy_transaction = {
+        'from': w3.eth.defaultAccount,
+        'data': contract._encode_constructor_data(args, {}),
+        'value': 0,
+        'gasPrice': 0
+    }
+    tx_hash = w3.eth.sendTransaction(deploy_transaction)
+    address = w3.eth.getTransactionReceipt(tx_hash)['contractAddress']
+    contract = ConciseContract(w3.eth.contract(
+        address,
+        abi=abi,
+        bytecode=bytecode
+    ))
+    return contract
 
 @pytest.fixture
 def DAI_token(w3):
-    deploy = create_contract(w3, 'tests/support/ERC20.vy')
-    tx_hash = deploy.constructor(b'DAI Test Token', b'DAI', 18, 100000*10**18).transact()
-    tx_receipt = w3.eth.getTransactionReceipt(tx_hash)
-    return ConciseContract(w3.eth.contract(
-        address=tx_receipt.contractAddress,
-        abi=deploy.abi
-    ))
+    args = [b'DAI Test Token', b'DAI', 18, 100000*10**18]
+    contract = create_contract(w3, 'tests/support/ERC20.vy', *args)
+    return contract
 
 @pytest.fixture
 def USDC_token(w3):
-    deploy = create_contract(w3, 'tests/support/ERC20.vy')
-    tx_hash = deploy.constructor(b'USDC Test Token', b'USDC', 18, 100000*10**18).transact()
-    tx_receipt = w3.eth.getTransactionReceipt(tx_hash)
-    return ConciseContract(w3.eth.contract(
-        address=tx_receipt.contractAddress,
-        abi=deploy.abi
-    ))
+    args = [b'USDC Test Token', b'USDC', 18, 100000*10**18]
+    contract = create_contract(w3, 'tests/support/ERC20.vy', *args)
+    return contract
 
 @pytest.fixture
 def contract(w3, DAI_token, USDC_token):
-    deploy = create_contract(w3, 'contracts/stablecoinswap.vy')
     available_tokens = [DAI_token.address, USDC_token.address, DAI_token.address]
-    tx_hash = deploy.constructor(available_tokens).transact()
-    tx_receipt = w3.eth.getTransactionReceipt(tx_hash)
-    contract = ConciseContract(w3.eth.contract(
-        address=tx_receipt.contractAddress,
-        abi=deploy.abi
-    ))
+    contract = create_contract(w3, 'contracts/stablecoinswap.vy', *[available_tokens])
     return contract
 
 @pytest.fixture

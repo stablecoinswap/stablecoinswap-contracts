@@ -18,6 +18,7 @@ def test_initial_liquidity(w3, contract, DAI_token, assert_fail):
     assert_fail(lambda: contract.addLiquidity(DAI_token.address, 10**9-1, DEADLINE, transact={'from': a1}))
     DAI_ADDED = 10**9
     contract.addLiquidity(DAI_token.address, DAI_ADDED, DEADLINE, transact={'from': a1})
+    assert DAI_token.balanceOf(contract.address) == DAI_ADDED
     assert contract.totalSupply() == DAI_ADDED
     assert contract.balanceOf(a1) == DAI_ADDED
     assert contract.poolOwnership(a1) == 1.0
