@@ -52,7 +52,8 @@ def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -
         self.balances[msg.sender] = amount
         self.totalSupply = amount
 
-    assert ERC20(token_address).transferFrom(msg.sender, self, amount)
+    transferFromResult: bool = ERC20(token_address).transferFrom(msg.sender, self, amount)
+    assert transferFromResult
     log.LiquidityAdded(msg.sender, amount)
     return True
 
@@ -65,7 +66,8 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
 
     self.balances[msg.sender] -= amount
     self.totalSupply -= amount
-    assert ERC20(token_address).transfer(msg.sender, amount)
+    transferResult: bool = ERC20(token_address).transfer(msg.sender, amount)
+    assert transferResult
     log.LiquidityRemoved(msg.sender, amount)
     return True
 
@@ -82,8 +84,10 @@ def swapTokens(input_token: address, output_token: address, input_amount: uint25
     assert current_price <= limit_price
     output_amount: uint256 = input_amount * current_price / 1000000 / 1000 * 998
 
-    assert ERC20(input_token).transferFrom(msg.sender, self, input_amount)
-    assert ERC20(output_token).transfer(msg.sender, output_amount)
+    transferFromResult: bool = ERC20(input_token).transferFrom(msg.sender, self, input_amount)
+    assert transferFromResult
+    transferResult: bool = ERC20(output_token).transfer(msg.sender, output_amount)
+    assert transferResult
 
     log.Trade(input_token, output_token, input_amount)
     return True
