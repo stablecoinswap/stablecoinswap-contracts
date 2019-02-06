@@ -16,8 +16,8 @@ def test_swap_tokens(w3, contract, DAI_token, USDC_token, assert_fail):
     USDC_token.transfer(w3.eth.defaultAccount, USDC_ADDED, transact={})
     USDC_token.approve(contract.address, USDC_ADDED, transact={'from': w3.eth.defaultAccount})
 
-    assert contract.inputTokens(DAI_token.address)
-    assert contract.outputTokens(USDC_token.address)
+    assert DAI_token.address in contract.availableInputTokens()
+    assert USDC_token.address in contract.availableOutputTokens()
     # we don't have enough output tokens
     assert_fail(lambda: contract.swapTokens(DAI_token.address, USDC_token.address, INPUT_AMOUNT, PRICE_LIMIT, DEADLINE, transact={'from': user_address}))
 

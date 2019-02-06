@@ -13,14 +13,16 @@ LiquidityRemoved: event({provider: indexed(address), amount: indexed(uint256)})
 Trade: event({input_token: indexed(address), output_token: indexed(address), input_amount: indexed(uint256)})
 PermissionUpdated: event({name: indexed(bytes[32]), value: indexed(bool)})
 
+MAX_TOKENS: constant(uint256) = 100
+
 name: public(bytes[32])                           # Stablecoinswap
 owner: public(address)                            # contract owner
 decimals: public(uint256)                         # 18
 totalSupply: public(uint256)                      # total number of contract tokens in existence
 balances: map(address, uint256)                   # balance of an address
 allowances: map(address, map(address, uint256))   # allowance of one address on another
-inputTokens: public(address[1000])                # addresses of the ERC20 tokens allowed to transfer into this contract
-outputTokens: public(address[1000])               # addresses of the ERC20 tokens allowed to transfer out of this contract
+inputTokens: address[MAX_TOKENS]                  # addresses of the ERC20 tokens allowed to transfer into this contract
+outputTokens: address[MAX_TOKENS]                 # addresses of the ERC20 tokens allowed to transfer out of this contract
 permissions: public(map(bytes[32], bool))         # pause / resume contract functions
 
 @public
@@ -60,7 +62,7 @@ def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -
 # Withdraw stablecoins.
 @public
 def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp) -> bool:
-    assert self.outputTokens[token_address]
+    assert token_address in self.outputTokens
     assert amount > 0 and deadline > block.timestamp
     assert self.permissions["liquidityRemovingAllowed"]
 
@@ -92,43 +94,81 @@ def swapTokens(input_token: address, output_token: address, input_amount: uint25
     log.Trade(input_token, output_token, input_amount)
     return True
 
+@private
+@constant
+def numberOfInputTokens() -> int128:
+    index: int128 = 0
+    for i in range(MAX_TOKENS):
+        if self.inputTokens[i] == ZERO_ADDRESS:
+            index = i
+            break
+    return index
+
+@private
+@constant
+def numberOfOutputTokens() -> int128:
+    index: int128 = 0
+    for i in range(MAX_TOKENS):
+        if self.outputTokens[i] == ZERO_ADDRESS:
+            index = i
+            break
+    return index
+
+@private
+@constant
+def findInputTokenIndex(_address: address) -> int128:
+    index: int128 = 0
+    for i in range(MAX_TOKENS):
+        if self.inputTokens[i] == _address:
+            index = i
+            break
+    return index
+
+@private
+@constant
+def findOutputTokenIndex(_address: address) -> int128:
+    index: int128 = 0
+    for i in range(MAX_TOKENS):
+        if self.outputTokens[i] == _address:
+            index = i
+            break
+    return index
+
 @public
 def updateInputToken(token_address: address, allowed: bool) -> bool:
     assert msg.sender == self.owner
 
     if allowed:
         assert not token_address in self.inputTokens
-        self.inputTokens[indexOfFirstEmptyElement(self.inputTokens)] = address
+        self.inputTokens[self.numberOfInputTokens()] = token_address
     else:
         assert token_address in self.inputTokens
-        self.inputTokens[findElementIndex(self.inputTokens, address)] = None
+        clear(self.inputTokens[self.findInputTokenIndex(token_address)])
 
     return True
-
-@private
-@constant
-def indexOfFirstEmptyElement(list: address[1000]) -> uint256:
-    index: uint256 = 0
-    for i in range(1000):
-        if list[i] == ZERO_ADDRESS:
-            index = i
-    return index
-
-@private
-@constant
-def findElementIndex(list: address[1000], address: address) -> uint256:
-    index: uint256 = 0
-    for i in range(1000):
-        if list[i] == address:
-            index = i
-    return index
 
 @public
 def updateOutputToken(token_address: address, allowed: bool) -> bool:
     assert msg.sender == self.owner
-    assert not self.outputTokens[token_address] == allowed
-    self.outputTokens[token_address] = allowed
+
+    if allowed:
+        assert not token_address in self.outputTokens
+        self.outputTokens[self.numberOfOutputTokens()] = token_address
+    else:
+        assert token_address in self.outputTokens
+        clear(self.outputTokens[self.findOutputTokenIndex(token_address)])
+
     return True
+
+@public
+@constant
+def availableInputTokens() -> address[MAX_TOKENS]:
+    return self.inputTokens
+
+@public
+@constant
+def availableOutputTokens() -> address[MAX_TOKENS]:
+    return self.outputTokens
 
 @public
 def updatePermission(permission_name: bytes[32], value: bool) -> bool:

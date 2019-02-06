@@ -73,8 +73,14 @@ def USDC_token(w3):
     return contract
 
 @pytest.fixture
-def contract(w3, DAI_token, USDC_token):
-    available_tokens = [DAI_token.address, USDC_token.address, DAI_token.address]
+def TUSD_token(w3):
+    args = [b'TUSD Test Token', b'TUSD', 18, 100000*10**18]
+    contract = create_contract(w3, 'tests/support/ERC20.vy', *args)
+    return contract
+
+@pytest.fixture
+def contract(w3, DAI_token, USDC_token, TUSD_token):
+    available_tokens = [DAI_token.address, USDC_token.address, TUSD_token.address]
     contract = create_contract(w3, 'contracts/stablecoinswap.vy', *[available_tokens])
     return contract
 
