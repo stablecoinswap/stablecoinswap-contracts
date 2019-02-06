@@ -1,7 +1,7 @@
 contract ERC20():
-    def transfer(_to : address, _value : uint256) -> bool: modifying
-    def transferFrom(_from : address, _to : address, _value : uint256) -> bool: modifying
-    def balanceOf(_owner : address) -> uint256: constant
+    def transfer(_to: address, _value: uint256) -> bool: modifying
+    def transferFrom(_from: address, _to: address, _value: uint256) -> bool: modifying
+    def balanceOf(_owner: address) -> uint256: constant
 
 # ERC20 events
 Transfer: event({_from: indexed(address), _to: indexed(address), _value: uint256})
@@ -130,20 +130,22 @@ def transferOwnership(new_owner: address) -> bool:
     log.OwnershipTransferred(self.owner, new_owner)
     return True
 
+# ERC-20 functions
+
 @public
 @constant
-def balanceOf(_owner : address) -> uint256:
+def balanceOf(_owner: address) -> uint256:
     return self.balances[_owner]
 
 @public
-def transfer(_to : address, _value : uint256) -> bool:
+def transfer(_to: address, _value: uint256) -> bool:
     self.balances[msg.sender] -= _value
     self.balances[_to] += _value
     log.Transfer(msg.sender, _to, _value)
     return True
 
 @public
-def transferFrom(_from : address, _to : address, _value : uint256) -> bool:
+def transferFrom(_from: address, _to: address, _value: uint256) -> bool:
     self.balances[_from] -= _value
     self.balances[_to] += _value
     self.allowances[_from][msg.sender] -= _value
@@ -151,12 +153,12 @@ def transferFrom(_from : address, _to : address, _value : uint256) -> bool:
     return True
 
 @public
-def approve(_spender : address, _value : uint256) -> bool:
+def approve(_spender: address, _value: uint256) -> bool:
     self.allowances[msg.sender][_spender] = _value
     log.Approval(msg.sender, msg.sender, _value)
     return True
 
 @public
 @constant
-def allowance(_owner : address, _spender : address) -> uint256:
+def allowance(_owner: address, _spender: address) -> uint256:
     return self.allowances[_owner][_spender]
