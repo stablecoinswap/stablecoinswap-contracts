@@ -12,6 +12,7 @@ LiquidityAdded: event({provider: indexed(address), amount: indexed(uint256)})
 LiquidityRemoved: event({provider: indexed(address), amount: indexed(uint256)})
 Trade: event({input_token: indexed(address), output_token: indexed(address), input_amount: indexed(uint256)})
 PermissionUpdated: event({name: indexed(bytes[32]), value: indexed(bool)})
+FeeUpdated: event({name: indexed(bytes[32]), value: indexed(decimal)})
 
 name: public(bytes[32])                           # Stablecoinswap
 owner: public(address)                            # contract owner
@@ -22,6 +23,7 @@ allowances: map(address, map(address, uint256))   # allowance of one address on 
 inputTokens: public(map(address, bool))           # addresses of the ERC20 tokens allowed to transfer into this contract
 outputTokens: public(map(address, bool))          # addresses of the ERC20 tokens allowed to transfer out of this contract
 permissions: public(map(bytes[32], bool))         # pause / resume contract functions
+fees: public(map(bytes[32], decimal))             # trade / pool fees
 
 @public
 def __init__(token_addresses: address[3]):
@@ -36,6 +38,9 @@ def __init__(token_addresses: address[3]):
         assert token_addresses[i] != ZERO_ADDRESS
         self.inputTokens[token_addresses[i]] = True
         self.outputTokens[token_addresses[i]] = True
+
+    self.fees['tradeFee'] = 0.002
+    self.fees['poolFee'] = 0.001
 
 # Deposit stablecoins.
 @public
@@ -82,7 +87,8 @@ def swapTokens(input_token: address, output_token: address, input_amount: uint25
     # this should be pulled from an oracle later on
     current_price: uint256 = 1000000
     assert current_price <= limit_price
-    output_amount: uint256 = input_amount * current_price / 1000000 / 1000 * 998
+    fee_numerator: int128 = 1000 - floor(self.fees['tradeFee'] * 1000.0)
+    output_amount: uint256 = input_amount * current_price / 1000000 * convert(fee_numerator, uint256) / 1000
 
     transferFromResult: bool = ERC20(input_token).transferFrom(msg.sender, self, input_amount)
     assert transferFromResult
@@ -128,6 +134,13 @@ def transferOwnership(new_owner: address) -> bool:
     assert msg.sender == self.owner
     self.owner = new_owner
     log.OwnershipTransferred(self.owner, new_owner)
+    return True
+
+@public
+def updateFee(fee_name: bytes[32], value: decimal) -> bool:
+    assert msg.sender == self.owner
+    self.fees[fee_name] = value
+    log.FeeUpdated(fee_name, value)
     return True
 
 # ERC-20 functions
