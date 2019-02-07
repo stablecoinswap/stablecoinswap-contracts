@@ -42,3 +42,7 @@ def test_swap_tokens(w3, contract, DAI_token, USDC_token, assert_fail):
     contract.updateOutputToken(USDC_token.address, True, transact={'from': w3.eth.defaultAccount})
     contract.updateInputToken(DAI_token.address, False, transact={'from': w3.eth.defaultAccount})
     assert_fail(lambda: contract.swapTokens(DAI_token.address, USDC_token.address, INPUT_AMOUNT, PRICE_LIMIT, DEADLINE, transact={'from': user_address}))
+    contract.updateInputToken(DAI_token.address, True, transact={'from': w3.eth.defaultAccount})
+    # permissions['tradingAllowed'] should be True
+    contract.updatePermission(b'tradingAllowed', False, transact={'from': w3.eth.defaultAccount})
+    assert_fail(lambda: contract.swapTokens(DAI_token.address, USDC_token.address, INPUT_AMOUNT, PRICE_LIMIT, DEADLINE, transact={'from': user_address}))
