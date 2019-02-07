@@ -28,9 +28,12 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, assert_fail):
     DAI_token.transfer(a1, 15*10**18, transact={})
     DAI_token.approve(contract.address, 15*10**18, transact={'from': a1})
     DAI_ADDED = 10**9
-    contract.updatePermission(b"liquidityAddingAllowed", False)
-    # addLiquidity after the previous line should fail but doesn't
-    # possibly becase "liquidityAddingAllowed" value is represented differently inside of the contract
+
+    # permissions['liquidityAddingAllowed'] should be True
+    assert contract.permissions(b'liquidityAddingAllowed')
+    contract.updatePermission(b'liquidityAddingAllowed', False, transact={'from': w3.eth.defaultAccount})
+    assert_fail(lambda: contract.addLiquidity(DAI_token.address, DAI_ADDED, DEADLINE, transact={'from': a1}))
+    contract.updatePermission(b'liquidityAddingAllowed', True, transact={'from': w3.eth.defaultAccount})
     contract.addLiquidity(DAI_token.address, DAI_ADDED, DEADLINE, transact={'from': a1})
 
     USDC_token.transfer(a2, 15*10**18, transact={})
@@ -65,6 +68,12 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, assert_fail):
     assert_fail(lambda: contract.removeLiquidity(USDC_token.address, TRANSFERRED_AMOUNT, 1, transact={'from': a2}))
     # amount > token liquidity
     assert_fail(lambda: contract.removeLiquidity(DAI_token.address, DAI_ADDED + 1, DEADLINE, transact={'from': a2}))
+
+    # permissions['liquidityRemovingAllowed'] should be True
+    assert contract.permissions(b'liquidityRemovingAllowed')
+    contract.updatePermission(b'liquidityRemovingAllowed', False, transact={'from': w3.eth.defaultAccount})
+    assert_fail(lambda: contract.removeLiquidity(DAI_token.address, DAI_ADDED, DEADLINE, transact={'from': a2}))
+    contract.updatePermission(b'liquidityRemovingAllowed', True, transact={'from': w3.eth.defaultAccount})
 
     # First and second liquidity providers remove their remaining liquidity
     contract.removeLiquidity(DAI_token.address, DAI_ADDED, DEADLINE, transact={'from': a2})
