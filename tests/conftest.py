@@ -75,7 +75,8 @@ def USDC_token(w3):
 @pytest.fixture
 def contract(w3, DAI_token, USDC_token):
     available_tokens = [DAI_token.address, USDC_token.address, DAI_token.address]
-    contract = create_contract(w3, 'contracts/stablecoinswap.vy', *[available_tokens])
+    oracle_url = b'https://fake-url.herokuapp.com'
+    contract = create_contract(w3, 'contracts/stablecoinswap.vy', *[available_tokens, oracle_url])
     return contract
 
 @pytest.fixture

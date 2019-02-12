@@ -13,6 +13,7 @@ LiquidityRemoved: event({provider: indexed(address), amount: indexed(uint256)})
 Trade: event({input_token: indexed(address), output_token: indexed(address), input_amount: indexed(uint256)})
 PermissionUpdated: event({name: indexed(bytes[32]), value: indexed(bool)})
 FeeUpdated: event({name: indexed(bytes[32]), value: indexed(decimal)})
+TokenPriceOracleUrlUpdated: event({new_url: indexed(bytes[32])})
 
 name: public(bytes[32])                           # Stablecoinswap
 owner: public(address)                            # contract owner
@@ -24,9 +25,10 @@ inputTokens: public(map(address, bool))           # addresses of the ERC20 token
 outputTokens: public(map(address, bool))          # addresses of the ERC20 tokens allowed to transfer out of this contract
 permissions: public(map(bytes[32], bool))         # pause / resume contract functions
 fees: public(map(bytes[32], decimal))             # trade / pool fees
+tokenPriceOracleUrl: bytes[32]                    # oracle url to get token prices
 
 @public
-def __init__(token_addresses: address[3]):
+def __init__(token_addresses: address[3], oracle_url: bytes[32]):
     self.owner = msg.sender
     self.name = "Stablecoinswap"
     self.decimals = 18
@@ -41,6 +43,8 @@ def __init__(token_addresses: address[3]):
 
     self.fees['tradeFee'] = 0.002
     self.fees['poolFee'] = 0.001
+
+    self.tokenPriceOracleUrl = oracle_url
 
 # Deposit stablecoins.
 @public
@@ -141,6 +145,13 @@ def updateFee(fee_name: bytes[32], value: decimal) -> bool:
     assert msg.sender == self.owner
     self.fees[fee_name] = value
     log.FeeUpdated(fee_name, value)
+    return True
+
+@public
+def updateTokenPriceOracleUrl(url: bytes[32]) -> bool:
+    assert msg.sender == self.owner
+    self.tokenPriceOracleUrl = url
+    log.TokenPriceOracleUrlUpdated(self.tokenPriceOracleUrl)
     return True
 
 # ERC-20 functions
