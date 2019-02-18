@@ -3,6 +3,13 @@ contract ERC20():
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: modifying
     def balanceOf(_owner: address) -> uint256: constant
 
+contract OraclizeI():
+    def getPrice(_datasource: string[20]) -> uint256: constant
+    def query(_timestamp: timestamp, _datasource: string[20], _arg: string[100]) -> bytes32: modifying
+
+contract OraclizeAddrResolverI():
+    def getAddress() -> address: constant
+
 # ERC20 events
 Transfer: event({_from: indexed(address), _to: indexed(address), _value: uint256})
 Approval: event({_owner: indexed(address), _spender: indexed(address), _value: uint256})
@@ -26,9 +33,17 @@ outputTokens: public(map(address, bool))          # addresses of the ERC20 token
 permissions: public(map(bytes[32], bool))         # pause / resume contract functions
 fees: public(map(bytes[32], decimal))             # trade / pool fees
 tokenPriceOracleUrl: bytes[32]                    # oracle url to get token prices
+oraclizeAddress: public(address)                  # address of oraclize contract
+pendingQueries: public(map(bytes32, bool))
+priceLimits: public(map(bytes32, uint256))
+inputSwapTokens: public(map(bytes32, address))
+outputSwapTokens: public(map(bytes32, address))
+inputAmounts: public(map(bytes32, uint256))
+swapTokenInitializers: public(map(bytes32, address))
+lastQueryId: public(bytes32)
 
 @public
-def __init__(token_addresses: address[3], oracle_url: bytes[32]):
+def __init__(token_addresses: address[3], oracle_url: bytes[32], oraclize_addr: address):
     self.owner = msg.sender
     self.name = "Stablecoinswap"
     self.decimals = 18
@@ -45,6 +60,8 @@ def __init__(token_addresses: address[3], oracle_url: bytes[32]):
     self.fees['poolFee'] = 0.001
 
     self.tokenPriceOracleUrl = oracle_url
+    # mainnet oraclize_addr - 0x1d3B2638a7cC9f2CB3D298A3DA7a90B67E5506ed
+    self.oraclizeAddress = OraclizeAddrResolverI(oraclize_addr).getAddress()
 
 # Deposit stablecoins.
 @public
@@ -80,6 +97,57 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
     log.LiquidityRemoved(msg.sender, amount)
     return True
 
+@public
+def stringToNumber(s: string[30]) -> decimal:
+    result: decimal
+    c: int128
+    isNegative: bool
+    isDecimal: bool
+    decimalMultiplicator: decimal = 10.0
+
+    for i in range(30):
+        if i < len(s):
+            c = convert(slice(s, start=i, len=1), int128)
+            if (c >= 48 and c <= 57):
+                if isDecimal:
+                    result = result + convert(c - 48, decimal) / decimalMultiplicator
+                    decimalMultiplicator = decimalMultiplicator * 10.0
+                else:
+                    result = result * 10.0 + convert(c - 48, decimal)
+            elif c == 45:
+                isNegative = True
+            elif c == 46:
+                isDecimal = True
+
+    if isNegative:
+        result = 0.0 - result
+
+    return result
+
+# get response with price from oracle and swap tokens
+@public
+def __callback(myid: bytes32, price_str: string[30]):
+    assert self.pendingQueries[myid] == True
+
+    current_price: decimal = self.stringToNumber(price_str)
+    assert current_price <= convert(self.priceLimits[myid], decimal) / 1000000.0
+    fee_numerator: int128 = 1000 - floor(self.fees['tradeFee'] * 1000.0)
+    output_amount: uint256 = self.inputAmounts[myid] * convert(floor(current_price * 1000000.0) / 1000000, uint256) * convert(fee_numerator, uint256) / 1000
+
+    transferFromResult: bool = ERC20(self.inputSwapTokens[myid]).transferFrom(self.swapTokenInitializers[myid], self, self.inputAmounts[myid])
+    assert transferFromResult
+    transferResult: bool = ERC20(self.outputSwapTokens[myid]).transfer(self.swapTokenInitializers[myid], output_amount)
+    assert transferResult
+
+    log.Trade(self.inputSwapTokens[myid], self.outputSwapTokens[myid], self.inputAmounts[myid])
+
+    clear(self.pendingQueries[myid])
+    clear(self.inputSwapTokens[myid])
+    clear(self.outputSwapTokens[myid])
+    clear(self.inputAmounts[myid])
+    clear(self.swapTokenInitializers[myid])
+    clear(self.priceLimits[myid])
+
 # Trade one stablecoin for another
 @public
 def swapTokens(input_token: address, output_token: address, input_amount: uint256, limit_price: uint256, deadline: timestamp) -> bool:
@@ -88,18 +156,30 @@ def swapTokens(input_token: address, output_token: address, input_amount: uint25
     assert deadline > block.timestamp
     assert self.permissions["tradingAllowed"]
 
+#    current_price: uint256 = 1000000
+#    assert current_price <= limit_price
+#    fee_numerator: int128 = 1000 - floor(self.fees['tradeFee'] * 1000.0)
+#    output_amount: uint256 = input_amount * current_price / 1000000 * convert(fee_numerator, uint256) / 1000
+
+#    transferFromResult: bool = ERC20(input_token).transferFrom(msg.sender, self, input_amount)
+#    assert transferFromResult
+#    transferResult: bool = ERC20(output_token).transfer(msg.sender, output_amount)
+#    assert transferResult
+
+    query_price: uint256(wei) = OraclizeI(self.oraclizeAddress).getPrice(b'URL')
+    assert query_price <= self.balance
+    assert query_price <= as_wei_value(1, 'ether') # unexpectedly high price
+    queryId: bytes32 = OraclizeI(self.oraclizeAddress).query(block.timestamp, b'URL', self.tokenPriceOracleUrl)
+    self.pendingQueries[queryId] = True
+    self.priceLimits[queryId] = limit_price
+    self.swapTokenInitializers[queryId] = msg.sender
+    self.inputAmounts[queryId] = input_amount
+    self.inputSwapTokens[queryId] = input_token
+    self.outputSwapTokens[queryId] = output_token
+    self.lastQueryId = queryId
+
     # this should be pulled from an oracle later on
-    current_price: uint256 = 1000000
-    assert current_price <= limit_price
-    fee_numerator: int128 = 1000 - floor(self.fees['tradeFee'] * 1000.0)
-    output_amount: uint256 = input_amount * current_price / 1000000 * convert(fee_numerator, uint256) / 1000
-
-    transferFromResult: bool = ERC20(input_token).transferFrom(msg.sender, self, input_amount)
-    assert transferFromResult
-    transferResult: bool = ERC20(output_token).transfer(msg.sender, output_amount)
-    assert transferResult
-
-    log.Trade(input_token, output_token, input_amount)
+    # current_price: uint256 = 1000000
     return True
 
 @public
