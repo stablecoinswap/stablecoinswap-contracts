@@ -26,3 +26,11 @@ def test_oraclize_connector(w3, oraclize, assert_fail):
     result = oraclize.query(cur_time, b'URL', 'https://fake-url.herokuapp.com')
     assert result == b'.Z\xda\xe6)\x98\xcd\x9b\x16\x07\xedA\x02W/lK\xdb\xe4\xb4\xaa\x99o\x14\x99\xf4A(\xbc|\x10\xbe'
 
+def test_oraclize_address(w3, contract, oraclize, assert_fail):
+    owner = w3.eth.defaultAccount
+    user = w3.eth.accounts[2]
+
+    assert contract.oraclizeAddress == oraclize.address
+    assert_fail(lambda: contract.updateOraclizeAddress(w3.eth.accounts[1], transact={'from': user}))
+    contract.updateOraclizeAddress(w3.eth.accounts[1], transact={'from': owner})
+    assert contract.oraclizeAddress == w3.eth.accounts[1]
