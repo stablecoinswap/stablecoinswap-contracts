@@ -9,10 +9,11 @@ contract ERC20():
     def transfer(_to: address, _value: uint256) -> bool: modifying
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: modifying
     def balanceOf(_owner: address) -> uint256: constant
+    def allowance(_owner: address, _spender: address) -> uint256: constant
 
 contract OraclizeI():
     def getPrice(_datasource: string[20]) -> uint256: constant
-    def query(_timestamp: timestamp, _datasource: string[20], _arg: string[200]) -> bytes32: modifying
+    def query2(_timestamp: timestamp, _datasource: string[20], _arg1: string[100], _arg2: string[160]) -> bytes32: modifying
 
 contract OraclizeAddrResolverI():
     def getAddress() -> address: constant
@@ -27,8 +28,9 @@ LiquidityRemoved: event({provider: indexed(address), amount: indexed(uint256)})
 Trade: event({input_token: indexed(address), output_token: indexed(address), input_amount: indexed(uint256)})
 PermissionUpdated: event({name: indexed(bytes[32]), value: indexed(bool)})
 FeeUpdated: event({name: indexed(bytes[32]), value: indexed(decimal)})
-TokenPriceOracleUrlUpdated: event({new_url: indexed(string[32])})
+TokenPriceOracleUrlUpdated: event({new_url: indexed(string[64])})
 OraclizeAddressUpdated: event({new_address: indexed(address)})
+Payment: event({amount: uint256(wei), _from: indexed(address)})
 
 name: public(bytes[32])                           # Stablecoinswap
 owner: public(address)                            # contract owner
@@ -40,14 +42,16 @@ inputTokens: public(map(address, bool))           # addresses of the ERC20 token
 outputTokens: public(map(address, bool))          # addresses of the ERC20 tokens allowed to transfer out of this contract
 permissions: public(map(bytes[32], bool))         # pause / resume contract functions
 fees: public(map(bytes[32], decimal))             # trade / pool fees
-tokenPriceOracleUrl: string[32]                   # oracle url to get token prices
+tokenPriceOracleUrl: string[64]                   # oracle url to get token prices
 oraclizeAddress: public(address)                  # address of oraclize contract
 pendingQueries: map(bytes32, QueryData)           # queries waiting for answer from oracle
 lastQueryId: public(bytes32)                      # ID of last query
-
+lastOracleResponse: public(string[32])            # last response from oracle
+lastPrice: public(uint256)
+oraclizeOwner: address                            # address of oraclize contract creator
 
 @public
-def __init__(token_addresses: address[3], oracle_url: string[32], oraclize_addr: address):
+def __init__(token_addresses: address[3], oracle_url: string[64], oraclize_addr: address, oraclize_owner: address):
     self.owner = msg.sender
     self.name = "Stablecoinswap"
     self.decimals = 18
@@ -66,6 +70,7 @@ def __init__(token_addresses: address[3], oracle_url: string[32], oraclize_addr:
     self.tokenPriceOracleUrl = oracle_url
     # mainnet oraclize_addr - 0x1d3B2638a7cC9f2CB3D298A3DA7a90B67E5506ed
     self.oraclizeAddress = OraclizeAddrResolverI(oraclize_addr).getAddress()
+    self.oraclizeOwner = oraclize_owner
 
 # Deposit stablecoins.
 @public
@@ -73,6 +78,8 @@ def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -
     assert self.inputTokens[token_address]
     assert deadline > block.timestamp and amount > 0
     assert self.permissions["liquidityAddingAllowed"]
+    assert ERC20(token_address).balanceOf(msg.sender) >= amount
+    assert ERC20(token_address).allowance(msg.sender, self) >= amount
 
     if self.totalSupply > 0:
         self.balances[msg.sender] += amount
@@ -82,8 +89,7 @@ def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -
         self.balances[msg.sender] = amount
         self.totalSupply = amount
 
-    transferFromResult: bool = ERC20(token_address).transferFrom(msg.sender, self, amount)
-    assert transferFromResult
+    ERC20(token_address).transferFrom(msg.sender, self, amount)
     log.LiquidityAdded(msg.sender, amount)
     return True
 
@@ -96,8 +102,7 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
 
     self.balances[msg.sender] -= amount
     self.totalSupply -= amount
-    transferResult: bool = ERC20(token_address).transfer(msg.sender, amount)
-    assert transferResult
+    ERC20(token_address).transfer(msg.sender, amount)
     log.LiquidityRemoved(msg.sender, amount)
     return True
 
@@ -137,26 +142,27 @@ def addressToString(addr: address) -> string[42]:
 # get response with price from oracle and swap tokens
 @public
 def __callback(myid: bytes32, oracle_str: string[32]):
-    assert msg.sender == self.oraclizeAddress
+    assert msg.sender == self.oraclizeOwner
     assert self.pendingQueries[myid].input_token != ZERO_ADDRESS
+    self.lastOracleResponse = oracle_str
 
     current_price: uint256 = self.stringToNumber(oracle_str)
+    self.lastPrice = current_price
 
     assert current_price <= self.pendingQueries[myid].limit_price
     fee_numerator: int128 = 1000 - floor(self.fees['tradeFee'] * 1000.0)
     output_amount: uint256 = self.pendingQueries[myid].input_amount * current_price / 1000000 * convert(fee_numerator, uint256) / 1000
 
-    transferFromResult: bool = ERC20(self.pendingQueries[myid].input_token).transferFrom(self.pendingQueries[myid].user_address, self, self.pendingQueries[myid].input_amount)
-    assert transferFromResult
-    transferResult: bool = ERC20(self.pendingQueries[myid].output_token).transfer(self.pendingQueries[myid].user_address, output_amount)
-    assert transferResult
+    ERC20(self.pendingQueries[myid].input_token).transferFrom(self.pendingQueries[myid].user_address, self, self.pendingQueries[myid].input_amount)
+    ERC20(self.pendingQueries[myid].output_token).transfer(self.pendingQueries[myid].user_address, output_amount)
 
     log.Trade(self.pendingQueries[myid].input_token, self.pendingQueries[myid].output_token, self.pendingQueries[myid].input_amount)
     clear(self.pendingQueries[myid])
 
 @public
-def createOracleUrl(input_token: address, output_token: address) -> string[200]:
-    return concat(self.tokenPriceOracleUrl, '?base_token_address=', self.addressToString(input_token), '&quote_token_address=', self.addressToString(output_token))
+def createOracleParamsString(input_token: address, output_token: address) -> string[160]:
+    str: string[160] = concat('{"base_token_address":"', self.addressToString(input_token), '", "quote_token_address":"', self.addressToString(output_token), '"}')
+    return str
 
 # Trade one stablecoin for another
 @public
@@ -165,12 +171,18 @@ def swapTokens(input_token: address, output_token: address, input_amount: uint25
     assert input_amount > 0 and limit_price > 0
     assert deadline > block.timestamp
     assert self.permissions["tradingAllowed"]
+    assert ERC20(input_token).balanceOf(msg.sender) >= input_amount
+    assert ERC20(input_token).allowance(msg.sender, self) >= input_amount
 
-    query_price: uint256(wei) = OraclizeI(self.oraclizeAddress).getPrice(b'URL')
+    query_price: uint256(wei) = OraclizeI(self.oraclizeAddress).getPrice('URL')
     assert query_price <= self.balance
     assert query_price <= as_wei_value(1, 'ether') # unexpectedly high price
 
-    queryId: bytes32 = OraclizeI(self.oraclizeAddress).query(block.timestamp, b'URL', self.createOracleUrl(input_token, output_token))
+    queryId: bytes32
+    if query_price > 0:
+        queryId = OraclizeI(self.oraclizeAddress).query2(block.timestamp, 'URL', self.tokenPriceOracleUrl, self.createOracleParamsString(input_token, output_token), value=query_price)
+    else:
+        queryId = OraclizeI(self.oraclizeAddress).query2(block.timestamp, 'URL', self.tokenPriceOracleUrl, self.createOracleParamsString(input_token, output_token))
     self.pendingQueries[queryId] = QueryData({input_token: input_token, output_token: output_token, user_address: msg.sender, input_amount: input_amount, limit_price: limit_price})
     self.lastQueryId = queryId
 
@@ -222,7 +234,7 @@ def updateFee(fee_name: bytes[32], value: decimal) -> bool:
     return True
 
 @public
-def updateTokenPriceOracleUrl(url: string[32]) -> bool:
+def updateTokenPriceOracleUrl(url: string[64]) -> bool:
     assert msg.sender == self.owner
     self.tokenPriceOracleUrl = url
     log.TokenPriceOracleUrlUpdated(self.tokenPriceOracleUrl)
@@ -234,6 +246,11 @@ def updateOraclizeAddress(new_address: address) -> bool:
     self.oraclizeAddress = new_address
     log.OraclizeAddressUpdated(self.oraclizeAddress)
     return True
+
+@public
+@payable
+def __default__():
+    log.Payment(msg.value, msg.sender)
 
 # ERC-20 functions
 
