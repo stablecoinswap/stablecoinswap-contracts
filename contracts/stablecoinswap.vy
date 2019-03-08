@@ -122,6 +122,9 @@ def stringToNumber(s: string[32]) -> uint256:
 
 @public
 def addressToString(addr: address) -> string[42]:
+    # we need to convert hexadecimal values like 0x9C to their string values - '9C'
+    # so we convert hexadecimal to integer value, then split it to digits: for value above they are 9 and 12 (0xC)
+    # after this we replace digits with their symbols: digits[9] - '9', digits[12] - 'C'
     digits: bytes[16] = convert('0123456789ABCDEF', bytes[16])
     address_bytes: bytes32 = convert(addr, bytes32)
     chunks: bytes[2][20]
