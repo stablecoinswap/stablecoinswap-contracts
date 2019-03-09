@@ -3,7 +3,7 @@ struct QueryData:
     output_token: address
     user_address: address
     input_amount: uint256
-    limit_price: uint256
+    min_output_amount: uint256
 
 contract ERC20():
     def transfer(_to: address, _value: uint256) -> bool: modifying
@@ -152,9 +152,9 @@ def __callback(myid: bytes32, oracle_str: string[32]):
     current_price: uint256 = self.stringToNumber(oracle_str)
     self.lastPrice = current_price
 
-    assert current_price <= self.pendingQueries[myid].limit_price
     fee_numerator: int128 = 1000 - floor(self.fees['tradeFee'] * 1000.0)
     output_amount: uint256 = self.pendingQueries[myid].input_amount * current_price / 1000000 * convert(fee_numerator, uint256) / 1000
+    assert output_amount >= self.pendingQueries[myid].min_output_amount
 
     ERC20(self.pendingQueries[myid].input_token).transferFrom(self.pendingQueries[myid].user_address, self, self.pendingQueries[myid].input_amount)
     ERC20(self.pendingQueries[myid].output_token).transfer(self.pendingQueries[myid].user_address, output_amount)
@@ -169,9 +169,9 @@ def createOracleParamsString(input_token: address, output_token: address) -> str
 
 # Trade one stablecoin for another
 @public
-def swapTokens(input_token: address, output_token: address, input_amount: uint256, limit_price: uint256, deadline: timestamp) -> bool:
+def swapTokens(input_token: address, output_token: address, input_amount: uint256, min_output_amount: uint256, deadline: timestamp) -> bool:
     assert self.inputTokens[input_token] and self.outputTokens[output_token]
-    assert input_amount > 0 and limit_price > 0
+    assert input_amount > 0 and min_output_amount > 0
     assert deadline > block.timestamp
     assert self.permissions["tradingAllowed"]
     assert ERC20(input_token).balanceOf(msg.sender) >= input_amount
@@ -186,7 +186,7 @@ def swapTokens(input_token: address, output_token: address, input_amount: uint25
         queryId = OraclizeI(self.oraclizeAddress).query2(block.timestamp, 'URL', self.tokenPriceOracleUrl, self.createOracleParamsString(input_token, output_token), value=query_price)
     else:
         queryId = OraclizeI(self.oraclizeAddress).query2(block.timestamp, 'URL', self.tokenPriceOracleUrl, self.createOracleParamsString(input_token, output_token))
-    self.pendingQueries[queryId] = QueryData({input_token: input_token, output_token: output_token, user_address: msg.sender, input_amount: input_amount, limit_price: limit_price})
+    self.pendingQueries[queryId] = QueryData({input_token: input_token, output_token: output_token, user_address: msg.sender, input_amount: input_amount, min_output_amount: min_output_amount})
     self.lastQueryId = queryId
 
     return True

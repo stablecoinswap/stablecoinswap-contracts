@@ -30,7 +30,7 @@ def test_oraclize_address(w3, contract, oraclize, assert_fail):
     owner = w3.eth.defaultAccount
     user = w3.eth.accounts[2]
 
-    assert contract.oraclizeAddress == oraclize.address
+    assert contract.oraclizeAddress() == oraclize.address
     assert_fail(lambda: contract.updateOraclizeAddress(w3.eth.accounts[1], transact={'from': user}))
     contract.updateOraclizeAddress(w3.eth.accounts[1], transact={'from': owner})
-    assert contract.oraclizeAddress == w3.eth.accounts[1]
+    assert contract.oraclizeAddress() == w3.eth.accounts[1]

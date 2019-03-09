@@ -9,7 +9,7 @@ def test_oracle_url(w3, contract, assert_fail):
 def test_create_url(w3, contract, DAI_token, USDC_token):
     input_address = DAI_token.address.upper().replace('X', 'x')
     output_address = USDC_token.address.upper().replace('X', 'x')
-    test_string = 'https://fake-url.herokuapp.com?base_token_address=' + input_address + '&quote_token_address=' + output_address
+    test_string = '{"base_token_address":"' + input_address + '", "quote_token_address":"' + output_address + '"}'
 
-    result = contract.createOracleUrl(DAI_token.address, USDC_token.address)
+    result = contract.createOracleParamsString(DAI_token.address, USDC_token.address)
     assert result == test_string
