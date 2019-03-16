@@ -46,8 +46,6 @@ tokenPriceOracleUrl: string[64]                   # oracle url to get token pric
 oraclizeAddress: public(address)                  # address of oraclize contract
 pendingQueries: map(bytes32, QueryData)           # queries waiting for answer from oracle
 lastQueryId: public(bytes32)                      # ID of last query
-lastOracleResponse: public(string[32])            # last response from oracle
-lastPrice: public(uint256)
 oraclizeOwner: address                            # address of oraclize contract creator
 
 @public
@@ -147,11 +145,8 @@ def addressToString(addr: address) -> string[42]:
 def __callback(myid: bytes32, oracle_str: string[32]):
     assert msg.sender == self.oraclizeOwner
     assert self.pendingQueries[myid].input_token != ZERO_ADDRESS
-    self.lastOracleResponse = oracle_str
 
     current_price: uint256 = self.stringToNumber(oracle_str)
-    self.lastPrice = current_price
-
     fee_numerator: int128 = 1000 - floor(self.fees['tradeFee'] * 1000.0)
     output_amount: uint256 = self.pendingQueries[myid].input_amount * current_price / 1000000 * convert(fee_numerator, uint256) / 1000
     assert output_amount >= self.pendingQueries[myid].min_output_amount
