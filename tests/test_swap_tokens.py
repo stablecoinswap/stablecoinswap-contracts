@@ -11,7 +11,7 @@ def test_swap_tokens(w3, contract, oraclize, DAI_token, USDC_token, assert_fail)
     OUTPUT_AMOUNT = int(INPUT_AMOUNT - SWAP_FEE)
     MIN_OUTPUT_AMOUNT = OUTPUT_AMOUNT - 1
     USDC_ADDED = 10**12
-    BYTES32_EMPTY_VALUE = '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+    QUERY_ID = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x04\xd2'
 
     DAI_token.transfer(user_address, 2*INPUT_AMOUNT, transact={})
     DAI_token.approve(contract.address, 2*INPUT_AMOUNT, transact={'from': user_address})
@@ -22,13 +22,12 @@ def test_swap_tokens(w3, contract, oraclize, DAI_token, USDC_token, assert_fail)
     assert contract.outputTokens(USDC_token.address)
     # we don't have enough output tokens
     contract.swapTokens(DAI_token.address, USDC_token.address, INPUT_AMOUNT, MIN_OUTPUT_AMOUNT, DEADLINE, transact={'from': user_address})
-    assert contract.lastQueryId() != BYTES32_EMPTY_VALUE
-    assert_fail(lambda: contract.__callback(contract.lastQueryId(), '1000000', transact={'from': oraclize_owner}))
+    assert_fail(lambda: contract.__callback(QUERY_ID, '1000000', transact={'from': oraclize_owner}))
 
     contract.addLiquidity(USDC_token.address, USDC_ADDED, DEADLINE, transact={'from': w3.eth.defaultAccount})
     assert USDC_token.balanceOf(contract.address) == USDC_ADDED
 
-    contract.__callback(contract.lastQueryId(), '1000000', transact={'from': oraclize_owner})
+    contract.__callback(QUERY_ID, '1000000', transact={'from': oraclize_owner})
     assert DAI_token.balanceOf(user_address) == 2 * INPUT_AMOUNT - INPUT_AMOUNT
     assert DAI_token.balanceOf(contract.address) == INPUT_AMOUNT
     assert USDC_token.balanceOf(user_address) == OUTPUT_AMOUNT
@@ -40,7 +39,7 @@ def test_swap_tokens(w3, contract, oraclize, DAI_token, USDC_token, assert_fail)
     assert_fail(lambda: contract.swapTokens(DAI_token.address, USDC_token.address, INPUT_AMOUNT, 0, DEADLINE, transact={'from': user_address}))
     # output_amount >= min_output_amount
     contract.swapTokens(DAI_token.address, USDC_token.address, INPUT_AMOUNT, OUTPUT_AMOUNT + 1, DEADLINE, transact={'from': user_address})
-    assert_fail(lambda: contract.__callback(contract.lastQueryId(), '1000000', transact={'from': oraclize_owner}))
+    assert_fail(lambda: contract.__callback(QUERY_ID, '1000000', transact={'from': oraclize_owner}))
     # deadline < block.timestamp
     assert_fail(lambda: contract.swapTokens(DAI_token.address, USDC_token.address, INPUT_AMOUNT, MIN_OUTPUT_AMOUNT, 0, transact={'from': user_address}))
     # input_token and output_token should be allowed

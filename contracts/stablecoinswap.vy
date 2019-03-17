@@ -45,7 +45,6 @@ fees: public(map(bytes[32], decimal))             # trade / pool fees
 tokenPriceOracleUrl: string[64]                   # oracle url to get token prices
 oraclizeAddress: public(address)                  # address of oraclize contract
 pendingQueries: map(bytes32, QueryData)           # queries waiting for answer from oracle
-lastQueryId: public(bytes32)                      # ID of last query
 oraclizeOwner: address                            # address of oraclize contract creator
 
 @public
@@ -182,7 +181,6 @@ def swapTokens(input_token: address, output_token: address, input_amount: uint25
     else:
         queryId = OraclizeI(self.oraclizeAddress).query2(block.timestamp, 'URL', self.tokenPriceOracleUrl, self.createOracleParamsString(input_token, output_token))
     self.pendingQueries[queryId] = QueryData({input_token: input_token, output_token: output_token, user_address: msg.sender, input_amount: input_amount, min_output_amount: min_output_amount})
-    self.lastQueryId = queryId
 
     return True
 

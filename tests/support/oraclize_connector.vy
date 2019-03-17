@@ -60,18 +60,15 @@ def getPrice(_datasource: bytes[20]) -> uint256:
     return _dsprice
 
 @public
-def query(_timestamp: timestamp, _datasource: bytes[20], _arg: string[100]) -> bytes32:
+def query(_timestamp: timestamp, _datasource: string[20], _arg: string[100]) -> bytes32:
     assert _timestamp <= block.timestamp + 3600 * 24 * 60
     _id: bytes32 = sha3(concat(convert(self, bytes32), convert(msg.sender, bytes32), convert(self.reqc[msg.sender], bytes32)))
     self.reqc[msg.sender] += 1
     return _id
 
 @public
-def query2(_timestamp: timestamp, _datasource: bytes[20], _arg1: string[100], _arg2: string[160]) -> bytes32:
-    assert _timestamp <= block.timestamp + 3600 * 24 * 60
-    _id: bytes32 = sha3(concat(convert(self, bytes32), convert(msg.sender, bytes32), convert(self.reqc[msg.sender], bytes32)))
-    self.reqc[msg.sender] += 1
-    return _id
+def query2(_timestamp: timestamp, _datasource: string[20], _arg1: string[100], _arg2: string[160]) -> bytes32:
+    return convert(1234, bytes32)
 
 @public
 @payable
