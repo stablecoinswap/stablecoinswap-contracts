@@ -62,20 +62,43 @@ def create_contract(w3, path, *args):
 
 @pytest.fixture
 def DAI_token(w3):
-    args = [b'DAI Test Token', b'DAI', 18, 100000*10**18]
+    args = ['DAI Test Token', 'DAI', 18, 100000*10**18]
     contract = create_contract(w3, 'tests/support/ERC20.vy', *args)
     return contract
 
 @pytest.fixture
 def USDC_token(w3):
-    args = [b'USDC Test Token', b'USDC', 18, 100000*10**18]
+    args = ['USDC Test Token', 'USDC', 18, 100000*10**18]
     contract = create_contract(w3, 'tests/support/ERC20.vy', *args)
     return contract
 
 @pytest.fixture
-def contract(w3, DAI_token, USDC_token):
+def oraclize(w3):
+    contract = create_contract(w3, 'tests/support/oraclize_connector.vy', *[])
+    return contract
+
+@pytest.fixture
+def oraclize_address_resolver(w3, oraclize):
+    contract = create_contract(w3, 'tests/support/oraclize_address_resolver.vy', *[])
+    contract.setAddr(oraclize.address, transact={'from': w3.eth.defaultAccount})
+    return contract
+
+@pytest.fixture
+def contract(w3, DAI_token, USDC_token, oraclize_address_resolver):
     available_tokens = [DAI_token.address, USDC_token.address, DAI_token.address]
-    contract = create_contract(w3, 'contracts/stablecoinswap.vy', *[available_tokens])
+    oracle_url = b'https://fake-url.herokuapp.com'
+    oraclize_owner = w3.eth.accounts[1]
+    args = [available_tokens, oracle_url, oraclize_address_resolver.address, oraclize_owner]
+    contract = create_contract(w3, 'contracts/stablecoinswap.vy', *args)
+    return contract
+
+@pytest.fixture
+def test_contract(w3, DAI_token, USDC_token, oraclize_address_resolver):
+    available_tokens = [DAI_token.address, USDC_token.address]
+    oracle_url = b'https://fake-url.herokuapp.com'
+    oraclize_owner = w3.eth.accounts[1]
+    args = [available_tokens, oracle_url, oraclize_address_resolver.address, oraclize_owner]
+    contract = create_contract(w3, 'contracts/test.vy', *args)
     return contract
 
 @pytest.fixture
