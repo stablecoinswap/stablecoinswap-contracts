@@ -25,8 +25,10 @@ def test_swap_tokens(w3, contract, oraclize, DAI_token, USDC_token, assert_fail)
     assert_fail(lambda: contract.__callback(QUERY_ID, '1000000', transact={'from': oraclize_owner}))
 
     contract.addLiquidity(USDC_token.address, USDC_ADDED, DEADLINE, transact={'from': w3.eth.defaultAccount})
+    contract.__callback(QUERY_ID, str(USDC_ADDED), transact={'from': oraclize_owner})
     assert USDC_token.balanceOf(contract.address) == USDC_ADDED
 
+    contract.swapTokens(DAI_token.address, USDC_token.address, INPUT_AMOUNT, MIN_OUTPUT_AMOUNT, DEADLINE, transact={'from': user_address})
     contract.__callback(QUERY_ID, '1000000', transact={'from': oraclize_owner})
     assert DAI_token.balanceOf(user_address) == 2 * INPUT_AMOUNT - INPUT_AMOUNT
     assert DAI_token.balanceOf(contract.address) == INPUT_AMOUNT
