@@ -49,6 +49,7 @@ tokenPriceOracleUrl: string[64]                   # oracle url to get token pric
 oraclizeAddress: public(address)                  # address of oraclize contract
 pendingQueries: map(bytes32, QueryData)           # queries waiting for answer from oracle
 oraclizeOwner: address                            # address of oraclize contract creator
+lastOracleResponse: public(string[32])
 
 @public
 def __init__(token_addresses: address[3], token_price_url: string[64], liquidity_url: string[64], oraclize_addr: address, oraclize_owner: address):
@@ -191,33 +192,37 @@ def stringToNumber(s: string[32]) -> uint256:
 # get response with price from oracle and swap tokens
 @public
 def __callback(myid: bytes32, oracle_str: string[32]):
+    self.lastOracleResponse = oracle_str
     assert msg.sender == self.oraclizeOwner
     assert self.pendingQueries[myid].input_token != ZERO_ADDRESS
 
-    if self.pendingQueries[myid].type == 0: # swapTokens()
+    query: QueryData = self.pendingQueries[myid]
+    if query.type == 0: # swapTokens()
         current_price: uint256 = self.stringToNumber(oracle_str)
         fee_numerator: int128 = 1000 - floor(self.fees['tradeFee'] * 1000.0)
-        output_amount: uint256 = self.pendingQueries[myid].input_amount * current_price / 1000000 * convert(fee_numerator, uint256) / 1000
-        assert output_amount >= self.pendingQueries[myid].min_output_amount
+        output_amount: uint256 = query.input_amount * current_price / 1000000 * convert(fee_numerator, uint256) / 1000
+        assert output_amount >= query.min_output_amount
 
-        ERC20(self.pendingQueries[myid].input_token).transferFrom(self.pendingQueries[myid].user_address, self, self.pendingQueries[myid].input_amount)
-        ERC20(self.pendingQueries[myid].output_token).transfer(self.pendingQueries[myid].user_address, output_amount)
+        ERC20(query.input_token).transferFrom(query.user_address, self, query.input_amount)
+        ERC20(query.output_token).transfer(query.user_address, output_amount)
 
-        log.Trade(self.pendingQueries[myid].input_token, self.pendingQueries[myid].output_token, self.pendingQueries[myid].input_amount)
-    elif self.pendingQueries[myid].type == 1: # addLiquidity()
+        log.Trade(query.input_token, query.output_token, query.input_amount)
+    elif query.type == 1: # addLiquidity()
         amount: uint256 = self.stringToNumber(oracle_str)
-        self.balances[self.pendingQueries[myid].user_address] += amount
+        assert amount > 0
+        self.balances[query.user_address] += amount
         self.totalSupply += amount
 
-        ERC20(self.pendingQueries[myid].input_token).transferFrom(self.pendingQueries[myid].user_address, self, self.pendingQueries[myid].input_amount)
-        log.LiquidityAdded(self.pendingQueries[myid].user_address, amount)
-    elif self.pendingQueries[myid].type == 2: # removeLiquidity()
+        ERC20(query.input_token).transferFrom(query.user_address, self, query.input_amount)
+        log.LiquidityAdded(query.user_address, amount)
+    elif query.type == 2: # removeLiquidity()
         amount: uint256 = self.stringToNumber(oracle_str)
-        assert self.balances[self.pendingQueries[myid].user_address] >= amount
-        self.balances[self.pendingQueries[myid].user_address] -= amount
+        assert amount > 0
+        assert self.balances[query.user_address] >= amount
+        self.balances[query.user_address] -= amount
         self.totalSupply -= amount
-        ERC20(self.pendingQueries[myid].input_token).transfer(self.pendingQueries[myid].user_address, self.pendingQueries[myid].input_amount)
-        log.LiquidityRemoved(self.pendingQueries[myid].user_address, amount)
+        ERC20(query.input_token).transfer(query.user_address, query.input_amount)
+        log.LiquidityRemoved(query.user_address, amount)
     clear(self.pendingQueries[myid])
 
 @public
