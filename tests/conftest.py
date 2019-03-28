@@ -86,19 +86,11 @@ def oraclize_address_resolver(w3, oraclize):
 @pytest.fixture
 def contract(w3, DAI_token, USDC_token, oraclize_address_resolver):
     available_tokens = [DAI_token.address, USDC_token.address, DAI_token.address]
-    oracle_url = b'https://fake-url.herokuapp.com'
+    price_oracle_url = 'https://fake-url.herokuapp.com/conversion_rate'
+    liquidity_oracle_url = 'https://fake-url.herokuapp.com/liquidity_data'
     oraclize_owner = w3.eth.accounts[1]
-    args = [available_tokens, oracle_url, oraclize_address_resolver.address, oraclize_owner]
+    args = [available_tokens, price_oracle_url, liquidity_oracle_url, oraclize_address_resolver.address, oraclize_owner]
     contract = create_contract(w3, 'contracts/stablecoinswap.vy', *args)
-    return contract
-
-@pytest.fixture
-def test_contract(w3, DAI_token, USDC_token, oraclize_address_resolver):
-    available_tokens = [DAI_token.address, USDC_token.address]
-    oracle_url = b'https://fake-url.herokuapp.com'
-    oraclize_owner = w3.eth.accounts[1]
-    args = [available_tokens, oracle_url, oraclize_address_resolver.address, oraclize_owner]
-    contract = create_contract(w3, 'contracts/test.vy', *args)
     return contract
 
 @pytest.fixture
