@@ -68,7 +68,7 @@ def DAI_token(w3):
 
 @pytest.fixture
 def USDC_token(w3):
-    args = ['USDC Test Token', 'USDC', 18, 100000*10**18]
+    args = ['USDC Test Token', 'USDC', 6, 100000*10**6]
     contract = create_contract(w3, 'tests/support/ERC20.vy', *args)
     return contract
 

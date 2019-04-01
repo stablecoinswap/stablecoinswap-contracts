@@ -5,19 +5,25 @@ struct QueryData:
     user_address: address
     input_amount: uint256
     min_output_amount: uint256
+    input_decimals: uint256
+    output_decimals: uint256
 
 contract ERC20():
     def transfer(_to: address, _value: uint256) -> bool: modifying
     def transferFrom(_from: address, _to: address, _value: uint256) -> bool: modifying
     def balanceOf(_owner: address) -> uint256: constant
     def allowance(_owner: address, _spender: address) -> uint256: constant
+    def decimals() -> uint256: constant
 
 contract OraclizeI():
-    def getPrice(_datasource: string[20]) -> uint256: constant
-    def query2(_timestamp: timestamp, _datasource: string[20], _arg1: string[100], _arg2: string[160]) -> bytes32: modifying
+    def getPrice(_datasource: string[20], _gasLimit: uint256) -> uint256: constant
+    def query2(_timestamp: timestamp, _datasource: string[20], _arg1: string[100], _arg2: string[160], _gasLimit: uint256) -> bytes32: modifying
+    def setCustomGasPrice(_gasPrice: uint256): modifying
 
 contract OraclizeAddrResolverI():
     def getAddress() -> address: constant
+
+GAS_LIMIT: constant(uint256) = 500000
 
 # ERC20 events
 Transfer: event({_from: indexed(address), _to: indexed(address), _value: uint256})
@@ -39,6 +45,7 @@ owner: public(address)                            # contract owner
 decimals: public(uint256)                         # 18
 totalSupply: public(uint256)                      # total number of contract tokens in existence
 balances: map(address, uint256)                   # balance of an address
+poolBalance: public(uint256)                      # pool balance in USD
 allowances: map(address, map(address, uint256))   # allowance of one address on another
 inputTokens: public(map(address, bool))           # addresses of the ERC20 tokens allowed to transfer into this contract
 outputTokens: public(map(address, bool))          # addresses of the ERC20 tokens allowed to transfer out of this contract
@@ -49,7 +56,6 @@ tokenPriceOracleUrl: string[64]                   # oracle url to get token pric
 oraclizeAddress: public(address)                  # address of oraclize contract
 pendingQueries: map(bytes32, QueryData)           # queries waiting for answer from oracle
 oraclizeOwner: address                            # address of oraclize contract creator
-lastOracleResponse: public(string[32])
 
 @public
 def __init__(token_addresses: address[3], token_price_url: string[64], liquidity_url: string[64], oraclize_addr: address, oraclize_owner: address):
@@ -139,7 +145,7 @@ def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -
     assert ERC20(token_address).balanceOf(msg.sender) >= amount
     assert ERC20(token_address).allowance(msg.sender, self) >= amount
 
-    query_price: uint256(wei) = OraclizeI(self.oraclizeAddress).getPrice('URL')
+    query_price: uint256(wei) = OraclizeI(self.oraclizeAddress).getPrice('URL', GAS_LIMIT)
     assert query_price <= self.balance
     assert query_price <= as_wei_value(1, 'ether') # unexpectedly high price
 
@@ -148,10 +154,10 @@ def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -
 
     queryId: bytes32
     if query_price > 0:
-        queryId = OraclizeI(self.oraclizeAddress).query2(block.timestamp, 'URL', self.liquidityOracleUrl, self.createLiquidityParamsString(token_address, amount, False), value=query_price)
+        queryId = OraclizeI(self.oraclizeAddress).query2(block.timestamp, 'URL', self.liquidityOracleUrl, self.createLiquidityParamsString(token_address, amount, False), GAS_LIMIT, value=query_price)
     else:
-        queryId = OraclizeI(self.oraclizeAddress).query2(block.timestamp, 'URL', self.liquidityOracleUrl, self.createLiquidityParamsString(token_address, amount, False))
-    self.pendingQueries[queryId] = QueryData({type: 1, input_token: token_address, output_token: ZERO_ADDRESS, user_address: msg.sender, input_amount: amount, min_output_amount: 0})
+        queryId = OraclizeI(self.oraclizeAddress).query2(block.timestamp, 'URL', self.liquidityOracleUrl, self.createLiquidityParamsString(token_address, amount, False), GAS_LIMIT)
+    self.pendingQueries[queryId] = QueryData({type: 1, input_token: token_address, output_token: ZERO_ADDRESS, user_address: msg.sender, input_amount: amount, min_output_amount: 0, input_decimals: ERC20(token_address).decimals(), output_decimals: 0})
 
     return True
 
@@ -162,16 +168,16 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
     assert amount > 0 and deadline > block.timestamp
     assert self.permissions["liquidityRemovingAllowed"]
 
-    query_price: uint256(wei) = OraclizeI(self.oraclizeAddress).getPrice('URL')
+    query_price: uint256(wei) = OraclizeI(self.oraclizeAddress).getPrice('URL', GAS_LIMIT)
     assert query_price <= self.balance
     assert query_price <= as_wei_value(1, 'ether') # unexpectedly high price
 
     queryId: bytes32
     if query_price > 0:
-        queryId = OraclizeI(self.oraclizeAddress).query2(block.timestamp, 'URL', self.liquidityOracleUrl, self.createLiquidityParamsString(token_address, amount, True), value=query_price)
+        queryId = OraclizeI(self.oraclizeAddress).query2(block.timestamp, 'URL', self.liquidityOracleUrl, self.createLiquidityParamsString(token_address, amount, True), GAS_LIMIT, value=query_price)
     else:
-        queryId = OraclizeI(self.oraclizeAddress).query2(block.timestamp, 'URL', self.liquidityOracleUrl, self.createLiquidityParamsString(token_address, amount, True))
-    self.pendingQueries[queryId] = QueryData({type: 2, input_token: token_address, output_token: ZERO_ADDRESS, user_address: msg.sender, input_amount: amount, min_output_amount: 0})
+        queryId = OraclizeI(self.oraclizeAddress).query2(block.timestamp, 'URL', self.liquidityOracleUrl, self.createLiquidityParamsString(token_address, amount, True), GAS_LIMIT)
+    self.pendingQueries[queryId] = QueryData({type: 2, input_token: token_address, output_token: ZERO_ADDRESS, user_address: msg.sender, input_amount: amount, min_output_amount: 0, input_decimals: ERC20(token_address).decimals(), output_decimals: 0})
 
     return True
 
@@ -192,35 +198,47 @@ def stringToNumber(s: string[32]) -> uint256:
 # get response with price from oracle and swap tokens
 @public
 def __callback(myid: bytes32, oracle_str: string[32]):
-    self.lastOracleResponse = oracle_str
     assert msg.sender == self.oraclizeOwner
     assert self.pendingQueries[myid].input_token != ZERO_ADDRESS
 
     query: QueryData = self.pendingQueries[myid]
+    token_multiplicator: uint256 = 10**(18 - query.input_decimals)
+
     if query.type == 0: # swapTokens()
+        token_divider: uint256 = 10**(18 - query.output_decimals)
         current_price: uint256 = self.stringToNumber(oracle_str)
-        fee_numerator: int128 = 1000 - floor(self.fees['tradeFee'] * 1000.0)
-        output_amount: uint256 = query.input_amount * current_price / 1000000 * convert(fee_numerator, uint256) / 1000
+        output_amount: uint256 = query.input_amount * current_price / 1000000 * token_multiplicator
+        owner_fee_amount: uint256 = output_amount * convert(floor(self.fees['poolFee'] * 1000.0), uint256) / 1000
+        trade_fee_amount: uint256 = output_amount * convert(floor(self.fees['tradeFee'] * 1000.0), uint256) / 1000
+        output_amount -= (owner_fee_amount + trade_fee_amount)
+        output_amount = output_amount / token_divider
         assert output_amount >= query.min_output_amount
 
         ERC20(query.input_token).transferFrom(query.user_address, self, query.input_amount)
         ERC20(query.output_token).transfer(query.user_address, output_amount)
-
         log.Trade(query.input_token, query.output_token, query.input_amount)
+
+        self.poolBalance += owner_fee_amount + trade_fee_amount
+        new_owner_shares: uint256 = self.totalSupply * owner_fee_amount / (self.poolBalance - owner_fee_amount)
+        self.balances[self.owner] += new_owner_shares
+        self.totalSupply += new_owner_shares
+        log.LiquidityAdded(self.owner, new_owner_shares)
     elif query.type == 1: # addLiquidity()
-        amount: uint256 = self.stringToNumber(oracle_str)
+        amount: uint256 = self.stringToNumber(oracle_str) / 100 * token_multiplicator
         assert amount > 0
         self.balances[query.user_address] += amount
         self.totalSupply += amount
+        self.poolBalance += amount
 
         ERC20(query.input_token).transferFrom(query.user_address, self, query.input_amount)
         log.LiquidityAdded(query.user_address, amount)
     elif query.type == 2: # removeLiquidity()
-        amount: uint256 = self.stringToNumber(oracle_str)
+        amount: uint256 = self.stringToNumber(oracle_str) / 100 * token_multiplicator
         assert amount > 0
         assert self.balances[query.user_address] >= amount
         self.balances[query.user_address] -= amount
         self.totalSupply -= amount
+        self.poolBalance -= amount
         ERC20(query.input_token).transfer(query.user_address, query.input_amount)
         log.LiquidityRemoved(query.user_address, amount)
     clear(self.pendingQueries[myid])
@@ -240,16 +258,16 @@ def swapTokens(input_token: address, output_token: address, input_amount: uint25
     assert ERC20(input_token).balanceOf(msg.sender) >= input_amount
     assert ERC20(input_token).allowance(msg.sender, self) >= input_amount
 
-    query_price: uint256(wei) = OraclizeI(self.oraclizeAddress).getPrice('URL')
+    query_price: uint256(wei) = OraclizeI(self.oraclizeAddress).getPrice('URL', GAS_LIMIT)
     assert query_price <= self.balance
     assert query_price <= as_wei_value(1, 'ether') # unexpectedly high price
 
     queryId: bytes32
     if query_price > 0:
-        queryId = OraclizeI(self.oraclizeAddress).query2(block.timestamp, 'URL', self.tokenPriceOracleUrl, self.createConversionParamsString(input_token, output_token), value=query_price)
+        queryId = OraclizeI(self.oraclizeAddress).query2(block.timestamp, 'URL', self.tokenPriceOracleUrl, self.createConversionParamsString(input_token, output_token), GAS_LIMIT, value=query_price)
     else:
-        queryId = OraclizeI(self.oraclizeAddress).query2(block.timestamp, 'URL', self.tokenPriceOracleUrl, self.createConversionParamsString(input_token, output_token))
-    self.pendingQueries[queryId] = QueryData({type: 0, input_token: input_token, output_token: output_token, user_address: msg.sender, input_amount: input_amount, min_output_amount: min_output_amount})
+        queryId = OraclizeI(self.oraclizeAddress).query2(block.timestamp, 'URL', self.tokenPriceOracleUrl, self.createConversionParamsString(input_token, output_token), GAS_LIMIT)
+    self.pendingQueries[queryId] = QueryData({type: 0, input_token: input_token, output_token: output_token, user_address: msg.sender, input_amount: input_amount, min_output_amount: min_output_amount, input_decimals: ERC20(input_token).decimals(), output_decimals: ERC20(output_token).decimals()})
 
     return True
 

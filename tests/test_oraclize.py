@@ -13,10 +13,10 @@ def test_oraclize_connector(w3, oraclize, assert_fail):
     owner = w3.eth.defaultAccount
     cur_time = w3.eth.getBlock(w3.eth.blockNumber).timestamp
 
-    assert oraclize.getPrice(b'URL') == 0
+    assert oraclize.getPrice(b'URL', 200000) == 0
     oraclize.addCbAddress(owner, b'\x01', transact={'from': owner})
     assert oraclize.cbAddress() == owner
-    assert oraclize.getPrice(b'URL') == 4000000000000000
+    assert oraclize.getPrice(b'URL', 200000) == 4000000000000000
 
     assert w3.eth.getBalance(oraclize.address) == 0
     assert w3.eth.getBalance(owner) == w3.toWei(1000000, 'ether')

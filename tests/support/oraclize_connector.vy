@@ -37,6 +37,10 @@ def removeCbAddress(newCbAddress: address):
     clear(self.cbAddresses[newCbAddress])
 
 @public
+def setCustomGasPrice(_gasPrice: uint256):
+    self.addr_gasPrice[msg.sender] = _gasPrice
+
+@public
 @constant
 def cbAddress() -> address:
     if self.cbAddresses[tx.origin] != b'\x00':
@@ -45,9 +49,8 @@ def cbAddress() -> address:
         return ZERO_ADDRESS
 
 @public
-def getPrice(_datasource: bytes[20]) -> uint256:
+def getPrice(_datasource: bytes[20], _gaslimit: uint256) -> uint256:
     _gasprice: uint256 = self.addr_gasPrice[msg.sender]
-    _gaslimit: uint256 = 200000
 
     if ((self.reqc[msg.sender] == 0) and (_gasprice <= GAS_PRICE) and (tx.origin != self.cbAddress())):
         return 0
@@ -67,7 +70,7 @@ def query(_timestamp: timestamp, _datasource: string[20], _arg: string[100]) -> 
     return _id
 
 @public
-def query2(_timestamp: timestamp, _datasource: string[20], _arg1: string[100], _arg2: string[160]) -> bytes32:
+def query2(_timestamp: timestamp, _datasource: string[20], _arg1: string[100], _arg2: string[160], _gasLimit: uint256) -> bytes32:
     return convert(1234, bytes32)
 
 @public
