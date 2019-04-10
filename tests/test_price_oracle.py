@@ -11,6 +11,10 @@ def test_price_oracle(w3, DAI_token, price_oracle, assert_fail):
 
   # only owner can update token price
   assert_fail(lambda: price_oracle.updatePrice(DAI_token.address, 97734655, transact={'from': user}))
+  # price validations
+  assert_fail(lambda: price_oracle.updatePrice(DAI_token.address, 9999999, transact={'from': user}))
+  assert_fail(lambda: price_oracle.updatePrice(DAI_token.address, 10000000001, transact={'from': user}))
+
   price_oracle.updatePrice(DAI_token.address, 97734655, transact={'from': owner})
   assert price_oracle.tokens(DAI_token.address) == 97734655
   price_oracle.updatePrice(DAI_token.address, 103349913, transact={'from': owner})
