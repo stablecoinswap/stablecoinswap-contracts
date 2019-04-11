@@ -5,12 +5,12 @@ from tests.constants import (
     ZERO_ADDR
 )
 
-def test_contract(w3, contract, oraclize, DAI_token, pad_bytes32):
+def test_contract(w3, contract, price_oracle, DAI_token, pad_bytes32):
   assert contract.owner() == w3.eth.defaultAccount
   assert contract.name() == b'Stablecoinswap'
   assert contract.decimals() == 18
   assert contract.totalSupply() == 0
-  assert contract.oraclizeAddress() == oraclize.address
+  assert contract.priceOracleAddress() == price_oracle.address
   # check used tokens
   assert contract.inputTokens(DAI_token.address)
   assert not contract.inputTokens(w3.eth.accounts[1])
