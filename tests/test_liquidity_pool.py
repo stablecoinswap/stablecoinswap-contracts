@@ -31,6 +31,36 @@ def test_initial_liquidity(w3, contract, DAI_token, price_oracle, assert_fail):
     assert contract.balanceOf(user_address) == DAI_ADDED * 1.01
     assert contract.poolOwnership(user_address) == 1.0
 
+def test_add_liquidity(w3, contract, DAI_token, USDC_token, price_oracle, assert_fail):
+    owner = w3.eth.accounts[0]
+    user = w3.eth.accounts[1]
+
+    DAI_token.transfer(owner, 15 * 10**18, transact={})
+    DAI_token.approve(contract.address, 15 * 10**18, transact={'from': owner})
+    USDC_token.transfer(user, 15 * 10**6, transact={})
+    USDC_token.approve(contract.address, 15 * 10**6, transact={'from': user})
+
+    DAI_PRICE = 1
+    USDC_PRICE = 1.2
+    price_oracle.updatePrice(DAI_token.address, DAI_PRICE * 10**8, transact={'from': owner})
+    price_oracle.updatePrice(USDC_token.address, int(USDC_PRICE * 10**8), transact={'from': owner})
+    price_oracle.updateTokenAddress(DAI_token.address, 0, transact={'from': owner})
+    price_oracle.updateTokenAddress(USDC_token.address, 1, transact={'from': owner})
+
+    DAI_ADDED = 1 * 10**18
+    contract.addLiquidity(DAI_token.address, DAI_ADDED, DEADLINE, transact={'from': owner})
+    USDC_ADDED = 1 * 10**6
+    contract.addLiquidity(USDC_token.address, USDC_ADDED, DEADLINE, transact={'from': user})
+    assert contract.totalSupply() == DAI_ADDED * DAI_PRICE + USDC_ADDED * USDC_PRICE * 10**(18-6)
+    assert contract.balanceOf(owner) == DAI_ADDED * DAI_PRICE
+    assert contract.balanceOf(user) == USDC_ADDED * 10**(18-6) * USDC_PRICE
+    assert price_oracle.poolSize(contract.address) == DAI_ADDED * DAI_PRICE + USDC_ADDED * USDC_PRICE * 10**(18-6)
+
+    NEW_DAI_PRICE = 1.5
+    price_oracle.updatePrice(DAI_token.address, int(NEW_DAI_PRICE * 10**8), transact={'from': owner})
+    assert contract.totalSupply() == DAI_ADDED * DAI_PRICE + USDC_ADDED * USDC_PRICE * 10**(18-6)
+    assert price_oracle.poolSize(contract.address) == DAI_ADDED * NEW_DAI_PRICE + USDC_ADDED * USDC_PRICE * 10**(18-6)
+
 def test_liquidity_pool(w3, contract, DAI_token, USDC_token, price_oracle, assert_fail):
     owner = w3.eth.accounts[0]
     user1 = w3.eth.accounts[1]
@@ -41,6 +71,7 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, price_oracle, asser
     DAI_token.approve(contract.address, 15*10**18, transact={'from': user1})
     DAI_ADDED = 1 * 10**18 # 1 DAI
     price_oracle.updatePrice(DAI_token.address, INT_TOKEN_PRICE, transact={'from': owner})
+    price_oracle.updateTokenAddress(DAI_token.address, 0, transact={'from': owner})
 
     # permissions['liquidityAddingAllowed'] should be True
     assert contract.permissions(b'liquidityAddingAllowed')
@@ -53,6 +84,7 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, price_oracle, asser
     USDC_token.approve(contract.address, 15*10**6, transact={'from': user2})
     USDC_ADDED = 3 * 10**6 # 3 USDC
     price_oracle.updatePrice(USDC_token.address, INT_TOKEN_PRICE, transact={'from': owner})
+    price_oracle.updateTokenAddress(USDC_token.address, 1, transact={'from': owner})
     contract.addLiquidity(USDC_token.address, USDC_ADDED, DEADLINE, transact={'from': user2})
 
     assert contract.totalSupply() == (DAI_ADDED + USDC_ADDED * 10**(18-6)) * TOKEN_PRICE

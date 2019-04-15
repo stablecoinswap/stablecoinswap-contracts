@@ -6,7 +6,8 @@ contract ERC20():
     def decimals() -> uint256: constant
 
 contract PriceOracle():
-    def tokens(token_address: address) -> uint256: constant
+    def poolSize(contract_address: address) -> uint256: constant
+    def token_prices(token_address: address) -> uint256: constant
 
 TOKEN_PRICE_MULTIPLIER: constant(uint256) = 100000000
 
@@ -64,9 +65,11 @@ def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -
     assert ERC20(token_address).balanceOf(msg.sender) >= amount
     assert ERC20(token_address).allowance(msg.sender, self) >= amount
 
-    new_liquidity: uint256 = PriceOracle(self.priceOracleAddress).tokens(token_address) * amount / TOKEN_PRICE_MULTIPLIER * 10**(self.decimals - ERC20(token_address).decimals())
-
-    if self.totalSupply == 0:
+    new_amount_in_usd: uint256 = PriceOracle(self.priceOracleAddress).token_prices(token_address) * amount / TOKEN_PRICE_MULTIPLIER * 10**(self.decimals - ERC20(token_address).decimals())
+    new_liquidity: uint256 = new_amount_in_usd
+    if self.totalSupply > 0:
+        new_liquidity *= self.totalSupply / PriceOracle(self.priceOracleAddress).poolSize(self)
+    else:
         assert new_liquidity >= 1000000000
 
     ERC20(token_address).transferFrom(msg.sender, self, amount)
@@ -84,9 +87,11 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
     assert self.balances[msg.sender] >= amount
     assert self.permissions["liquidityRemovingAllowed"]
 
-    token_price: uint256 = PriceOracle(self.priceOracleAddress).tokens(token_address)
-    assert token_price > 0
-    token_amount: uint256 = amount * TOKEN_PRICE_MULTIPLIER / token_price / 10**(self.decimals - ERC20(token_address).decimals())
+    token_price: uint256 = PriceOracle(self.priceOracleAddress).token_prices(token_address)
+    assert token_price > 0 and self.totalSupply > 0
+    # usd_amount = amount(in contract tokens) * poolSize / totalSupply
+    # token_amount = usd_amount / token_price
+    token_amount: uint256 = amount * PriceOracle(self.priceOracleAddress).poolSize(self) * TOKEN_PRICE_MULTIPLIER / token_price / self.totalSupply / 10**(self.decimals - ERC20(token_address).decimals())
 
     ERC20(token_address).transfer(msg.sender, token_amount)
     self.balances[msg.sender] -= amount
@@ -105,19 +110,30 @@ def swapTokens(input_token: address, output_token: address, input_amount: uint25
     assert ERC20(input_token).balanceOf(msg.sender) >= input_amount
     assert ERC20(input_token).allowance(msg.sender, self) >= input_amount
 
-    input_token_price: uint256 = PriceOracle(self.priceOracleAddress).tokens(input_token)
-    output_token_price: uint256 = PriceOracle(self.priceOracleAddress).tokens(output_token)
-    fee_numerator: int128 = 1000 - floor(self.fees['tradeFee'] * 1000.0)
+    input_token_price: uint256 = PriceOracle(self.priceOracleAddress).token_prices(input_token)
+    output_token_price: uint256 = PriceOracle(self.priceOracleAddress).token_prices(output_token)
 
-    output_amount: uint256 = input_amount * input_token_price / output_token_price * convert(fee_numerator, uint256) / 1000
     token_multiplier: uint256 = 10**(self.decimals - ERC20(input_token).decimals())
+    output_amount: uint256 = input_amount * token_multiplier * input_token_price / output_token_price
+    tradeFee: uint256 = output_amount * convert(floor(self.fees['tradeFee'] * 1000.0), uint256) / 1000
+    ownerFee: uint256 = output_amount * convert(floor(self.fees['poolFee'] * 1000.0), uint256) / 1000
+    output_amount -= tradeFee + ownerFee
+
+    pool_size: uint256 = PriceOracle(self.priceOracleAddress).poolSize(self)
+    tradeFee *= output_token_price / TOKEN_PRICE_MULTIPLIER
+    ownerFee *= output_token_price / TOKEN_PRICE_MULTIPLIER
+    new_owner_shares: uint256 = self.totalSupply * ownerFee / (pool_size + tradeFee)
+
     token_divider: uint256 = 10**(self.decimals - ERC20(output_token).decimals())
-    output_amount = output_amount * token_multiplier / token_divider
+    output_amount = output_amount / token_divider
     assert output_amount >= min_output_amount
 
     ERC20(input_token).transferFrom(msg.sender, self, input_amount)
     ERC20(output_token).transfer(msg.sender, output_amount)
     log.Trade(input_token, output_token, input_amount)
+
+    self.balances[self.owner] += new_owner_shares
+    self.totalSupply += new_owner_shares
 
     return True
 
