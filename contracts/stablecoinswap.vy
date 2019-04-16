@@ -52,7 +52,7 @@ def __init__(token_addresses: address[3], price_oracle_addr: address):
         self.outputTokens[token_addresses[i]] = True
 
     self.fees['tradeFee'] = 0.002
-    self.fees['poolFee'] = 0.001
+    self.fees['ownerFee'] = 0.001
 
     self.priceOracleAddress = price_oracle_addr
 
@@ -65,8 +65,7 @@ def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -
     assert ERC20(token_address).balanceOf(msg.sender) >= amount
     assert ERC20(token_address).allowance(msg.sender, self) >= amount
 
-    new_amount_in_usd: uint256 = PriceOracle(self.priceOracleAddress).token_prices(token_address) * amount / TOKEN_PRICE_MULTIPLIER * 10**(self.decimals - ERC20(token_address).decimals())
-    new_liquidity: uint256 = new_amount_in_usd
+    new_liquidity: uint256 = PriceOracle(self.priceOracleAddress).token_prices(token_address) * amount / TOKEN_PRICE_MULTIPLIER * 10**(self.decimals - ERC20(token_address).decimals())
     if self.totalSupply > 0:
         new_liquidity *= self.totalSupply / PriceOracle(self.priceOracleAddress).poolSize(self)
     else:
@@ -116,7 +115,7 @@ def swapTokens(input_token: address, output_token: address, input_amount: uint25
     token_multiplier: uint256 = 10**(self.decimals - ERC20(input_token).decimals())
     output_amount: uint256 = input_amount * token_multiplier * input_token_price / output_token_price
     tradeFee: uint256 = output_amount * convert(floor(self.fees['tradeFee'] * 1000.0), uint256) / 1000
-    ownerFee: uint256 = output_amount * convert(floor(self.fees['poolFee'] * 1000.0), uint256) / 1000
+    ownerFee: uint256 = output_amount * convert(floor(self.fees['ownerFee'] * 1000.0), uint256) / 1000
     output_amount -= tradeFee + ownerFee
 
     pool_size: uint256 = PriceOracle(self.priceOracleAddress).poolSize(self)
