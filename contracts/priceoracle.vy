@@ -1,8 +1,5 @@
 contract ERC20():
-    def transfer(_to: address, _value: uint256) -> bool: modifying
-    def transferFrom(_from: address, _to: address, _value: uint256) -> bool: modifying
     def balanceOf(_owner: address) -> uint256: constant
-    def allowance(_owner: address, _spender: address) -> uint256: constant
     def decimals() -> uint256: constant
 
 MIN_PRICE: constant(uint256) = 1000000 # $0.01
