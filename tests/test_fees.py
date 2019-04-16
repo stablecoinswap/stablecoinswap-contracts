@@ -6,7 +6,7 @@ def test_fees(w3, contract, assert_fail):
 
   # initial values
   assert contract.fees(b'tradeFee') == Decimal('0.002')
-  assert contract.fees(b'poolFee') == Decimal('0.001')
+  assert contract.fees(b'ownerFee') == Decimal('0.001')
 
   # only owner can change fees
   assert_fail(lambda: contract.updateFee(b'tradeFee', Decimal('0.003'), transact={'from': user}))
@@ -14,5 +14,5 @@ def test_fees(w3, contract, assert_fail):
   assert contract.fees(b'tradeFee') == Decimal('0.002')
   contract.updateFee(b'tradeFee', Decimal('0.003'), transact={'from': owner})
   assert contract.fees(b'tradeFee') == Decimal('0.003')
-  contract.updateFee(b'poolFee', Decimal('0.004'), transact={'from': owner})
-  assert contract.fees(b'poolFee') == Decimal('0.004')
+  contract.updateFee(b'ownerFee', Decimal('0.004'), transact={'from': owner})
+  assert contract.fees(b'ownerFee') == Decimal('0.004')
