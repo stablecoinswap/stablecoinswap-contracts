@@ -31,7 +31,7 @@ def test_swap_tokens(w3, contract, price_oracle, DAI_token, USDC_token, assert_f
     assert contract.inputTokens(DAI_token.address)
     assert contract.outputTokens(USDC_token.address)
     # we don't have enough output tokens
-    # assert_fail(lambda: contract.swapTokens(DAI_token.address, USDC_token.address, INPUT_AMOUNT, MIN_OUTPUT_AMOUNT, DEADLINE, transact={'from': user_address}))
+    assert_fail(lambda: contract.swapTokens(DAI_token.address, USDC_token.address, INPUT_AMOUNT, MIN_OUTPUT_AMOUNT, DEADLINE, transact={'from': user_address}))
 
     contract.addLiquidity(USDC_token.address, USDC_ADDED, DEADLINE, transact={'from': owner})
     assert USDC_token.balanceOf(contract.address) == USDC_ADDED
