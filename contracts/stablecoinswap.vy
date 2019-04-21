@@ -90,11 +90,23 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
     assert token_price > 0 and self.totalSupply > 0
     # usd_amount = amount(in contract tokens) * poolSize / totalSupply
     # token_amount = usd_amount / token_price
-    token_amount: uint256 = amount * PriceOracle(self.priceOracleAddress).poolSize(self) * TOKEN_PRICE_MULTIPLIER / token_price / self.totalSupply / 10**(self.decimals - ERC20(token_address).decimals())
+    token_amount: uint256 = amount * PriceOracle(self.priceOracleAddress).poolSize(self) / self.totalSupply
+
+    tradeFee: uint256 = 0
+    ownerFee: uint256 = 0
+
+    if msg.sender != self.owner:
+        tradeFee = token_amount * convert(floor(self.fees['tradeFee'] * 1000.0), uint256) / 1000
+        ownerFee = token_amount * convert(floor(self.fees['ownerFee'] * 1000.0), uint256) / 1000
+        token_amount -= tradeFee + ownerFee
+
+    token_divider: uint256 = 10**(self.decimals - ERC20(token_address).decimals())
+    token_amount = token_amount * TOKEN_PRICE_MULTIPLIER / token_price / token_divider
 
     ERC20(token_address).transfer(msg.sender, token_amount)
     self.balances[msg.sender] -= amount
-    self.totalSupply -= amount
+    self.balances[self.owner] += ownerFee
+    self.totalSupply -= amount - ownerFee
     log.LiquidityRemoved(msg.sender, amount)
 
     return True
