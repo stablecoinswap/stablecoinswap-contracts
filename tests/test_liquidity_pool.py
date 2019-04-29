@@ -130,6 +130,7 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, price_oracle, asser
     assert price_oracle.poolSize(contract.address) == TOTAL_LIQUIDITY_BEFORE
     assert contract.balanceOf(owner) == 0
 
+    # second provider removes liquidity in DAI
     amount_to_remove = int(DAI_ADDED * TOKEN_PRICE)
     owner_fee = int(amount_to_remove * 0.001)
     new_total_liquidity = TOTAL_LIQUIDITY_BEFORE - amount_to_remove + owner_fee
@@ -141,6 +142,7 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, price_oracle, asser
     assert price_oracle.poolSize(contract.address) == new_pool_size
     assert DAI_token.balanceOf(contract.address) == int(DAI_ADDED * 0.003)
 
+    # second provider removes remaining liquidity in USDC
     amount_to_remove = NEW_USER_TWO_BALANCE - amount_to_remove
     assert contract.balanceOf(user2) == amount_to_remove
     new_owner_fee = int(int(amount_to_remove * new_pool_size / new_total_liquidity) * 0.001)
@@ -159,6 +161,7 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, price_oracle, asser
     assert USDC_token.balanceOf(contract.address) == usdc_balance
     assert price_oracle.poolSize(contract.address) == new_pool_size
 
+    # first provider removes liquidity in USDC
     assert contract.balanceOf(user1) == NEW_USER_ONE_BALANCE
     new_owner_fee = int(NEW_USER_ONE_BALANCE * new_pool_size * 0.001 / new_total_liquidity)
     amount_to_transfer = int(NEW_USER_ONE_BALANCE * new_pool_size / new_total_liquidity * 0.997)
@@ -168,6 +171,7 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, price_oracle, asser
     pool_size_change = int(int(amount_to_transfer / TOKEN_PRICE / 10**(18-6)) * TOKEN_PRICE * 10**(18-6))
     new_pool_size -= pool_size_change
 
+    # check contract balances and pool size
     assert contract.totalSupply() == owner_fee
     assert price_oracle.poolSize(contract.address) == new_pool_size
     assert contract.balanceOf(user1) == 0
