@@ -100,8 +100,10 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
         ownerFee = token_amount * convert(floor(self.fees['ownerFee'] * 1000.0), uint256) / 1000
         token_amount -= tradeFee + ownerFee
 
-    token_divider: uint256 = 10**(self.decimals - ERC20(token_address).decimals())
-    token_amount = token_amount * TOKEN_PRICE_MULTIPLIER / token_price / token_divider
+    # convert contract tokens to selected by user
+    # some tokens have 18 decimals, some - 6 decimals (so we have token_multiplier and token_divider)
+    # token_amount = contract_amount / token_price * token_multiplier / token_divider
+    token_amount = token_amount * TOKEN_PRICE_MULTIPLIER / token_price / 10**(self.decimals - ERC20(token_address).decimals())
 
     ERC20(token_address).transfer(msg.sender, token_amount)
     self.balances[msg.sender] -= amount
