@@ -67,7 +67,7 @@ def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -
 
     new_liquidity: uint256 = PriceOracle(self.priceOracleAddress).token_prices(token_address) * amount / TOKEN_PRICE_MULTIPLIER * 10**(self.decimals - ERC20(token_address).decimals())
     if self.totalSupply > 0:
-        new_liquidity *= self.totalSupply / PriceOracle(self.priceOracleAddress).poolSize(self)
+        new_liquidity = new_liquidity * self.totalSupply / PriceOracle(self.priceOracleAddress).poolSize(self)
     else:
         assert new_liquidity >= 1000000000
 
