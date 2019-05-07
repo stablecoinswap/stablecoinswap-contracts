@@ -20,6 +20,7 @@ def __init__():
     self.name = 'PriceOracle'
 
 @public
+@constant
 def poolSize(contract_address: address) -> uint256:
     token_address: address
     total: uint256 = 0
