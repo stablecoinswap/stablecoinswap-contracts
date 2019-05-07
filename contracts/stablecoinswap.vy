@@ -29,7 +29,6 @@ owner: public(address)                            # contract owner
 decimals: public(uint256)                         # 18
 totalSupply: public(uint256)                      # total number of contract tokens in existence
 balances: map(address, uint256)                   # balance of an address
-poolBalance: public(uint256)                      # pool balance in USD
 allowances: map(address, map(address, uint256))   # allowance of one address on another
 inputTokens: public(map(address, bool))           # addresses of the ERC20 tokens allowed to transfer into this contract
 outputTokens: public(map(address, bool))          # addresses of the ERC20 tokens allowed to transfer out of this contract
