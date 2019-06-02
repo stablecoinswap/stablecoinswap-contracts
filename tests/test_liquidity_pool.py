@@ -82,7 +82,7 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, price_oracle, asser
 
     USDC_token.transfer(user2, 42*10**6, transact={})
     USDC_token.approve(contract.address, 42*10**6, transact={'from': user2})
-    USDC_ADDED = 30 * 10**6 # 3 USDC
+    USDC_ADDED = 30 * 10**6 # 30 USDC
     price_oracle.updatePrice(USDC_token.address, INT_TOKEN_PRICE, transact={'from': owner})
     price_oracle.updateTokenAddress(USDC_token.address, 1, transact={'from': owner})
     contract.addLiquidity(USDC_token.address, USDC_ADDED, DEADLINE, transact={'from': user2})
