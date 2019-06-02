@@ -95,9 +95,8 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
     ownerFee: uint256 = 0
 
     if msg.sender != self.owner:
-        tradeFee = token_amount * convert(floor(self.fees['tradeFee'] * 1000.0), uint256) / 1000
-        ownerFee = token_amount * convert(floor(self.fees['ownerFee'] * 1000.0), uint256) / 1000
-        token_amount -= tradeFee + ownerFee
+        ownerFee = amount * convert(floor(self.fees['ownerFee'] * 1000.0), uint256) / 1000
+        token_amount = token_amount * convert(floor((1.0 - self.fees['ownerFee'] - self.fees['tradeFee']) * 1000.0), uint256) / 1000
 
     # convert contract tokens to selected by user
     # some tokens have 18 decimals, some - 6 decimals (so we have token_multiplier and token_divider)
