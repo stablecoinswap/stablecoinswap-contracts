@@ -10,6 +10,7 @@ contract PriceOracle():
     def token_prices(token_address: address) -> uint256: constant
 
 TOKEN_PRICE_MULTIPLIER: constant(uint256) = 100000000
+FEE_MULTIPLIER: constant(uint256) = 1000
 
 # ERC20 events
 Transfer: event({_from: indexed(address), _to: indexed(address), _value: uint256})
@@ -33,7 +34,7 @@ allowances: map(address, map(address, uint256))   # allowance of one address on 
 inputTokens: public(map(address, bool))           # addresses of the ERC20 tokens allowed to transfer into this contract
 outputTokens: public(map(address, bool))          # addresses of the ERC20 tokens allowed to transfer out of this contract
 permissions: public(map(bytes[32], bool))         # pause / resume contract functions
-fees: public(map(bytes[32], decimal))             # trade / pool fees
+feesInt: map(bytes[32], uint256)                  # trade / pool fees multiplied by FEE_MULTIPLIER
 priceOracleAddress: public(address)               # address of price oracle
 
 @public
@@ -50,8 +51,8 @@ def __init__(token_addresses: address[3], price_oracle_addr: address):
         self.inputTokens[token_addresses[i]] = True
         self.outputTokens[token_addresses[i]] = True
 
-    self.fees['tradeFee'] = 0.002
-    self.fees['ownerFee'] = 0.001
+    self.feesInt['tradeFee'] = 2
+    self.feesInt['ownerFee'] = 1
 
     self.priceOracleAddress = price_oracle_addr
 
@@ -95,8 +96,8 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
     ownerFee: uint256 = 0
 
     if msg.sender != self.owner:
-        ownerFee = amount * convert(floor(self.fees['ownerFee'] * 1000.0), uint256) / 1000
-        token_amount = token_amount * convert(floor((1.0 - self.fees['ownerFee'] - self.fees['tradeFee']) * 1000.0), uint256) / 1000
+        ownerFee = amount * self.feesInt['ownerFee'] / FEE_MULTIPLIER
+        token_amount = token_amount * (FEE_MULTIPLIER - self.feesInt['ownerFee'] - self.feesInt['tradeFee']) / FEE_MULTIPLIER
 
     # convert contract tokens to selected by user
     # some tokens have 18 decimals, some - 6 decimals (so we have token_multiplier and token_divider)
@@ -126,8 +127,8 @@ def swapTokens(input_token: address, output_token: address, input_amount: uint25
 
     token_multiplier: uint256 = 10**(self.decimals - ERC20(input_token).decimals())
     output_amount: uint256 = input_amount * token_multiplier * input_token_price / output_token_price
-    tradeFee: uint256 = output_amount * convert(floor(self.fees['tradeFee'] * 1000.0), uint256) / 1000
-    ownerFee: uint256 = output_amount * convert(floor(self.fees['ownerFee'] * 1000.0), uint256) / 1000
+    tradeFee: uint256 = output_amount * self.feesInt['tradeFee'] / FEE_MULTIPLIER
+    ownerFee: uint256 = output_amount * self.feesInt['ownerFee'] / FEE_MULTIPLIER
     output_amount -= tradeFee + ownerFee
 
     pool_size: uint256 = PriceOracle(self.priceOracleAddress).poolSize(self)
@@ -189,9 +190,14 @@ def transferOwnership(new_owner: address) -> bool:
 @public
 def updateFee(fee_name: bytes[32], value: decimal) -> bool:
     assert msg.sender == self.owner
-    self.fees[fee_name] = value
+    self.feesInt[fee_name] = convert(floor(value * convert(FEE_MULTIPLIER, decimal)), uint256)
     log.FeeUpdated(fee_name, value)
     return True
+
+@public
+@constant
+def fees(fee_name: bytes[32]) -> decimal:
+    return convert(self.feesInt[fee_name], decimal) / convert(FEE_MULTIPLIER, decimal)
 
 @public
 def updatePriceOracleAddress(new_address: address) -> bool:
