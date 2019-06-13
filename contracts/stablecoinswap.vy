@@ -190,7 +190,6 @@ def transferOwnership(new_owner: address) -> bool:
 @public
 def updateFee(fee_name: bytes[32], value: decimal) -> bool:
     assert msg.sender == self.owner
-    assert value >= 0.0
     self.feesInt[fee_name] = convert(floor(value * convert(FEE_MULTIPLIER, decimal)), uint256)
     log.FeeUpdated(fee_name, value)
     return True
