@@ -88,8 +88,7 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
 
     token_price: uint256 = PriceOracle(self.priceOracleAddress).token_prices(token_address)
     assert token_price > 0 and self.totalSupply > 0
-    # usd_amount = amount (in contract tokens) * poolSize / totalSupply
-    # token_amount = usd_amount / token_price
+    # amount(in USD) = amount(in contract tokens) * poolSize / totalSupply
     token_amount: uint256 = amount * PriceOracle(self.priceOracleAddress).poolSize(self) / self.totalSupply
 
     tradeFee: uint256 = 0
@@ -100,8 +99,9 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
         token_amount = token_amount * (FEE_MULTIPLIER - self.feesInt['ownerFee'] - self.feesInt['tradeFee']) / FEE_MULTIPLIER
 
     # convert contract tokens to selected by user
-    # some tokens have 18 decimals, some - 6 decimals (so we have token_multiplier and token_divider)
-    # token_amount = contract_amount / token_price * token_multiplier / token_divider
+    # token_amount (in ERC20 token) = amount (in USD) / ERC20_token_price
+    # (where ERC20_token_price = token_price / TOKEN_PRICE_MULTIPLIER)
+    # Also tokens have different number of decimals, so we should divide amount by 10^decimals_difference
     token_amount = token_amount * TOKEN_PRICE_MULTIPLIER / token_price / 10**(self.decimals - ERC20(token_address).decimals())
 
     ERC20(token_address).transfer(msg.sender, token_amount)
