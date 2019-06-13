@@ -10,6 +10,8 @@ def test_fees(w3, contract, assert_fail):
 
   # only owner can change fees
   assert_fail(lambda: contract.updateFee(b'tradeFee', Decimal('0.003'), transact={'from': user}))
+  # fee can't be negative
+  assert_fail(lambda: contract.updateFee(b'tradeFee', Decimal('-0.003'), transact={'from': owner}))
   contract.updateFee(b'tradeFee', Decimal('0.003'))
   assert contract.fees(b'tradeFee') == Decimal('0.002')
   contract.updateFee(b'tradeFee', Decimal('0.003'), transact={'from': owner})
