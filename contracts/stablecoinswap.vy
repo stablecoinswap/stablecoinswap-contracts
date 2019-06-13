@@ -88,7 +88,7 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
 
     token_price: uint256 = PriceOracle(self.priceOracleAddress).token_prices(token_address)
     assert token_price > 0 and self.totalSupply > 0
-    # usd_amount = amount(in contract tokens) * poolSize / totalSupply
+    # usd_amount = amount (in contract tokens) * poolSize / totalSupply
     # token_amount = usd_amount / token_price
     token_amount: uint256 = amount * PriceOracle(self.priceOracleAddress).poolSize(self) / self.totalSupply
 
@@ -170,7 +170,7 @@ def updatePermission(permission_name: bytes[32], value: bool) -> bool:
     log.PermissionUpdated(permission_name, value)
     return True
 
-# Return share of total liquidity that owns to user
+# Return share of total liquidity belonging to the user
 @public
 @constant
 def poolOwnership(user_address: address) -> decimal:
