@@ -1,4 +1,5 @@
-# THIS CONTRACT IS FOR TESTING PURPOSES AND IS NOT PART OF THE PROJECT
+# THIS CONTRACT IS FOR TESTING PURPOSES (pytest and live testing on testnet)
+# IT IS NOT PART OF THE PROJECT
 
 Transfer: event({_from: indexed(address), _to: indexed(address), _value: uint256})
 Approval: event({_owner: indexed(address), _spender: indexed(address), _value: uint256})
@@ -54,7 +55,7 @@ def allowance(_owner : address, _spender : address) -> uint256:
 
 @public
 def mint(_to: address, _value: uint256) -> bool:
-    assert msg.sender == self.owner
+    # assert msg.sender == self.owner
     assert _to != ZERO_ADDRESS
     self.totalSupply += _value
     self.balances[_to] += _value
