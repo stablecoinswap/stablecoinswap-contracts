@@ -71,9 +71,10 @@ def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -
     else:
         assert new_liquidity >= 1000000000
 
-    ERC20(token_address).transferFrom(msg.sender, self, amount)
     self.balances[msg.sender] += new_liquidity
     self.totalSupply += new_liquidity
+
+    ERC20(token_address).transferFrom(msg.sender, self, amount)
     log.LiquidityAdded(msg.sender, new_liquidity)
 
     return True
@@ -104,10 +105,11 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
     # Also tokens have different number of decimals, so we should divide amount by 10^decimals_difference
     token_amount = token_amount * TOKEN_PRICE_MULTIPLIER / token_price / 10**(self.decimals - ERC20(token_address).decimals())
 
-    ERC20(token_address).transfer(msg.sender, token_amount)
     self.balances[msg.sender] -= amount
     self.balances[self.owner] += ownerFee
     self.totalSupply -= amount - ownerFee
+
+    ERC20(token_address).transfer(msg.sender, token_amount)
     log.LiquidityRemoved(msg.sender, amount)
 
     return True
@@ -140,12 +142,12 @@ def swapTokens(input_token: address, output_token: address, input_amount: uint25
     output_amount = output_amount / token_divider
     assert output_amount >= min_output_amount
 
+    self.balances[self.owner] += new_owner_shares
+    self.totalSupply += new_owner_shares
+
     ERC20(input_token).transferFrom(msg.sender, self, input_amount)
     ERC20(output_token).transfer(msg.sender, output_amount)
     log.Trade(input_token, output_token, input_amount)
-
-    self.balances[self.owner] += new_owner_shares
-    self.totalSupply += new_owner_shares
 
     return True
 
