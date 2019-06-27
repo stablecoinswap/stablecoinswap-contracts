@@ -7,7 +7,7 @@ from tests.constants import (
 
 def test_contract(w3, contract, price_oracle, DAI_token, pad_bytes32):
   assert contract.owner() == w3.eth.defaultAccount
-  assert contract.name() == b'Stablecoinswap'
+  assert contract.name() == 'Stablecoinswap'
   assert contract.decimals() == 18
   assert contract.totalSupply() == 0
   assert contract.priceOracleAddress() == price_oracle.address

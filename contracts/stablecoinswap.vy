@@ -20,25 +20,27 @@ OwnershipTransferred: event({previous_owner: indexed(address), new_owner: indexe
 LiquidityAdded: event({provider: indexed(address), amount: indexed(uint256)})
 LiquidityRemoved: event({provider: indexed(address), amount: indexed(uint256)})
 Trade: event({input_token: indexed(address), output_token: indexed(address), input_amount: indexed(uint256)})
-PermissionUpdated: event({name: indexed(bytes[32]), value: indexed(bool)})
-FeeUpdated: event({name: indexed(bytes[32]), value: indexed(decimal)})
+PermissionUpdated: event({name: indexed(string[32]), value: indexed(bool)})
+FeeUpdated: event({name: indexed(string[32]), value: indexed(decimal)})
 PriceOracleAddressUpdated: event({new_address: indexed(address)})
 Payment: event({amount: uint256(wei), _from: indexed(address)})
 
-name: public(bytes[32])                           # Stablecoinswap
-owner: public(address)                            # contract owner
-decimals: public(uint256)                         # 18
-totalSupply: public(uint256)                      # total number of contract tokens in existence
-balances: map(address, uint256)                   # balance of an address
-allowances: map(address, map(address, uint256))   # allowance of one address on another
-inputTokens: public(map(address, bool))           # addresses of the ERC20 tokens allowed to transfer into this contract
-outputTokens: public(map(address, bool))          # addresses of the ERC20 tokens allowed to transfer out of this contract
-permissions: public(map(bytes[32], bool))         # pause / resume contract functions
-feesInt: map(bytes[32], uint256)                  # trade / pool fees multiplied by FEE_MULTIPLIER
-priceOracleAddress: public(address)               # address of price oracle
+name: public(string[32])                                 # Stablecoinswap
+owner: public(address)                                   # contract owner
+decimals: public(uint256)                                # 18
+totalSupply: public(uint256)                             # total number of contract tokens in existence
+balanceOf: public(map(address, uint256))                 # balance of an address
+allowance: public(map(address, map(address, uint256)))   # allowance of one address on another
+inputTokens: public(map(address, bool))                  # addresses of the ERC20 tokens allowed to transfer into this contract
+outputTokens: public(map(address, bool))                 # addresses of the ERC20 tokens allowed to transfer out of this contract
+permissions: public(map(string[32], bool))               # pause / resume contract functions
+feesInt: map(string[32], uint256)                        # trade / pool fees multiplied by FEE_MULTIPLIER
+priceOracleAddress: public(address)                      # address of price oracle
 
 @public
 def __init__(token_addresses: address[3], price_oracle_addr: address):
+    assert price_oracle_addr != ZERO_ADDRESS
+
     self.owner = msg.sender
     self.name = "Stablecoinswap"
     self.decimals = 18
@@ -56,7 +58,15 @@ def __init__(token_addresses: address[3], price_oracle_addr: address):
 
     self.priceOracleAddress = price_oracle_addr
 
-# Deposit stablecoins.
+@private
+@constant
+def tokenPrice(token_address: address) -> uint256:
+    token_price: uint256 = PriceOracle(self.priceOracleAddress).token_prices(token_address)
+    assert token_price > 0
+
+    return token_price
+
+# Deposit stablecoins
 @public
 def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -> bool:
     assert self.inputTokens[token_address]
@@ -65,13 +75,13 @@ def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -
     assert ERC20(token_address).balanceOf(msg.sender) >= amount
     assert ERC20(token_address).allowance(msg.sender, self) >= amount
 
-    new_liquidity: uint256 = PriceOracle(self.priceOracleAddress).token_prices(token_address) * amount / TOKEN_PRICE_MULTIPLIER * 10**(self.decimals - ERC20(token_address).decimals())
+    new_liquidity: uint256 = self.tokenPrice(token_address) * amount / TOKEN_PRICE_MULTIPLIER * 10**(self.decimals - ERC20(token_address).decimals())
     if self.totalSupply > 0:
         new_liquidity = new_liquidity * self.totalSupply / PriceOracle(self.priceOracleAddress).poolSize(self)
     else:
         assert new_liquidity >= 1000000000
 
-    self.balances[msg.sender] += new_liquidity
+    self.balanceOf[msg.sender] += new_liquidity
     self.totalSupply += new_liquidity
 
     ERC20(token_address).transferFrom(msg.sender, self, amount)
@@ -79,17 +89,17 @@ def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -
 
     return True
 
-# Withdraw stablecoins.
+# Withdraw stablecoins
 @public
 def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp) -> bool:
     assert self.outputTokens[token_address]
     assert amount > 0 and deadline > block.timestamp
-    assert self.balances[msg.sender] >= amount
+    assert self.balanceOf[msg.sender] >= amount
     assert self.permissions["liquidityRemovingAllowed"]
+    assert self.totalSupply > 0
 
-    token_price: uint256 = PriceOracle(self.priceOracleAddress).token_prices(token_address)
-    assert token_price > 0 and self.totalSupply > 0
-    # amount(in USD) = amount(in contract tokens) * poolSize / totalSupply
+    token_price: uint256 = self.tokenPrice(token_address)
+    # amount (in USD) = amount(in contract tokens) * poolSize / totalSupply
     token_amount: uint256 = amount * PriceOracle(self.priceOracleAddress).poolSize(self) / self.totalSupply
 
     tradeFee: uint256 = 0
@@ -105,8 +115,8 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
     # Also tokens have different number of decimals, so we should divide amount by 10^decimals_difference
     token_amount = token_amount * TOKEN_PRICE_MULTIPLIER / token_price / 10**(self.decimals - ERC20(token_address).decimals())
 
-    self.balances[msg.sender] -= amount
-    self.balances[self.owner] += ownerFee
+    self.balanceOf[msg.sender] -= amount
+    self.balanceOf[self.owner] += ownerFee
     self.totalSupply -= amount - ownerFee
 
     ERC20(token_address).transfer(msg.sender, token_amount)
@@ -124,8 +134,8 @@ def swapTokens(input_token: address, output_token: address, input_amount: uint25
     assert ERC20(input_token).balanceOf(msg.sender) >= input_amount
     assert ERC20(input_token).allowance(msg.sender, self) >= input_amount
 
-    input_token_price: uint256 = PriceOracle(self.priceOracleAddress).token_prices(input_token)
-    output_token_price: uint256 = PriceOracle(self.priceOracleAddress).token_prices(output_token)
+    input_token_price: uint256 = self.tokenPrice(input_token)
+    output_token_price: uint256 = self.tokenPrice(output_token)
 
     token_multiplier: uint256 = 10**(self.decimals - ERC20(input_token).decimals())
     output_amount: uint256 = input_amount * token_multiplier * input_token_price / output_token_price
@@ -142,7 +152,7 @@ def swapTokens(input_token: address, output_token: address, input_amount: uint25
     output_amount = output_amount / token_divider
     assert output_amount >= min_output_amount
 
-    self.balances[self.owner] += new_owner_shares
+    self.balanceOf[self.owner] += new_owner_shares
     self.totalSupply += new_owner_shares
 
     ERC20(input_token).transferFrom(msg.sender, self, input_amount)
@@ -166,7 +176,7 @@ def updateOutputToken(token_address: address, allowed: bool) -> bool:
     return True
 
 @public
-def updatePermission(permission_name: bytes[32], value: bool) -> bool:
+def updatePermission(permission_name: string[32], value: bool) -> bool:
     assert msg.sender == self.owner
     self.permissions[permission_name] = value
     log.PermissionUpdated(permission_name, value)
@@ -176,7 +186,7 @@ def updatePermission(permission_name: bytes[32], value: bool) -> bool:
 @public
 @constant
 def poolOwnership(user_address: address) -> decimal:
-    user_balance: decimal = convert(self.balances[user_address], decimal)
+    user_balance: decimal = convert(self.balanceOf[user_address], decimal)
     total_liquidity: decimal = convert(self.totalSupply, decimal)
     share: decimal = user_balance / total_liquidity
     return share
@@ -190,7 +200,7 @@ def transferOwnership(new_owner: address) -> bool:
     return True
 
 @public
-def updateFee(fee_name: bytes[32], value: decimal) -> bool:
+def updateFee(fee_name: string[32], value: decimal) -> bool:
     assert msg.sender == self.owner
     self.feesInt[fee_name] = convert(floor(value * convert(FEE_MULTIPLIER, decimal)), uint256)
     log.FeeUpdated(fee_name, value)
@@ -198,7 +208,7 @@ def updateFee(fee_name: bytes[32], value: decimal) -> bool:
 
 @public
 @constant
-def fees(fee_name: bytes[32]) -> decimal:
+def fees(fee_name: string[32]) -> decimal:
     return convert(self.feesInt[fee_name], decimal) / convert(FEE_MULTIPLIER, decimal)
 
 @public
@@ -211,32 +221,22 @@ def updatePriceOracleAddress(new_address: address) -> bool:
 # ERC-20 functions
 
 @public
-@constant
-def balanceOf(_owner: address) -> uint256:
-    return self.balances[_owner]
-
-@public
 def transfer(_to: address, _value: uint256) -> bool:
-    self.balances[msg.sender] -= _value
-    self.balances[_to] += _value
+    self.balanceOf[msg.sender] -= _value
+    self.balanceOf[_to] += _value
     log.Transfer(msg.sender, _to, _value)
     return True
 
 @public
 def transferFrom(_from: address, _to: address, _value: uint256) -> bool:
-    self.balances[_from] -= _value
-    self.balances[_to] += _value
-    self.allowances[_from][msg.sender] -= _value
+    self.balanceOf[_from] -= _value
+    self.balanceOf[_to] += _value
+    self.allowance[_from][msg.sender] -= _value
     log.Transfer(_from, _to, _value)
     return True
 
 @public
 def approve(_spender: address, _value: uint256) -> bool:
-    self.allowances[msg.sender][_spender] = _value
+    self.allowance[msg.sender][_spender] = _value
     log.Approval(msg.sender, msg.sender, _value)
     return True
-
-@public
-@constant
-def allowance(_owner: address, _spender: address) -> uint256:
-    return self.allowances[_owner][_spender]
