@@ -2,6 +2,10 @@ from decimal import (
     Decimal, getcontext
 )
 
+from math import (
+    floor
+)
+
 from tests.constants import (
     DEADLINE
 )
@@ -41,7 +45,7 @@ def test_add_liquidity(w3, contract, DAI_token, USDC_token, price_oracle, assert
     USDC_token.approve(contract.address, 15 * 10**6, transact={'from': user})
 
     DAI_PRICE = 1
-    USDC_PRICE = 1.2
+    USDC_PRICE = Decimal(12) / Decimal(10) # 1.2
     price_oracle.updatePrice(DAI_token.address, DAI_PRICE * 10**8, transact={'from': owner})
     price_oracle.updatePrice(USDC_token.address, int(USDC_PRICE * 10**8), transact={'from': owner})
     price_oracle.updateTokenAddress(DAI_token.address, 0, transact={'from': owner})
@@ -59,7 +63,26 @@ def test_add_liquidity(w3, contract, DAI_token, USDC_token, price_oracle, assert
     NEW_DAI_PRICE = 1.5
     price_oracle.updatePrice(DAI_token.address, int(NEW_DAI_PRICE * 10**8), transact={'from': owner})
     assert contract.totalSupply() == DAI_ADDED * DAI_PRICE + USDC_ADDED * USDC_PRICE * 10**(18-6)
-    assert price_oracle.poolSize(contract.address) == DAI_ADDED * NEW_DAI_PRICE + USDC_ADDED * USDC_PRICE * 10**(18-6)
+    assert price_oracle.poolSize(contract.address) == DAI_ADDED * NEW_DAI_PRICE + int(USDC_ADDED * USDC_PRICE * 10**(18-6))
+
+    # following asserts are necessary to test a rounding
+    # add 1 DAI at the lowest level of precision (10^(-18) DAI token)
+    contract.addLiquidity(DAI_token.address, 1, DEADLINE, transact={'from': owner})
+    # it will not increase totalSupply because 10^(-18) DAI costs
+    # less than 10^(-18) stablecoinswap contract token
+    assert contract.totalSupply() == DAI_ADDED * DAI_PRICE + USDC_ADDED * USDC_PRICE * 10**(18-6)
+    DAI_ADDED = DAI_ADDED + 1 # 10^18 + 1
+
+    # tests for price values (price multiplier is 10**8):
+    # the absolute minimum + 1 (at the lowest level of precision) and the maximum - 1
+    DAI_MIN_PRICE = 0.01000001
+    price_oracle.updatePrice(DAI_token.address, int(DAI_MIN_PRICE * 10**8), transact={'from': owner})
+    assert price_oracle.poolSize(contract.address) == DAI_ADDED * DAI_MIN_PRICE + int(USDC_ADDED * USDC_PRICE * 10**(18-6))
+
+    DAI_MAX_PRICE = Decimal(9999999999)/Decimal(10**8) # 99.99999999
+    price_oracle.updatePrice(DAI_token.address, int(DAI_MAX_PRICE * 10**8), transact={'from': owner})
+
+    assert price_oracle.poolSize(contract.address) == floor(Decimal(DAI_ADDED) * Decimal(DAI_MAX_PRICE)) + Decimal(USDC_ADDED) * Decimal(USDC_PRICE) * Decimal(10**(18-6))
 
 def test_liquidity_pool(w3, contract, DAI_token, USDC_token, price_oracle, assert_fail):
     owner = w3.eth.accounts[0]
