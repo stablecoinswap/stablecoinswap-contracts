@@ -75,7 +75,8 @@ def addLiquidity(token_address: address, amount: uint256, deadline: timestamp) -
     assert ERC20(token_address).balanceOf(msg.sender) >= amount
     assert ERC20(token_address).allowance(msg.sender, self) >= amount
 
-    new_liquidity: uint256 = self.tokenPrice(token_address) * amount / TOKEN_PRICE_MULTIPLIER * 10**(self.decimals - ERC20(token_address).decimals())
+    # it is better to divide at the very end of the expression due to rounding
+    new_liquidity: uint256 = self.tokenPrice(token_address) * amount * 10**(self.decimals - ERC20(token_address).decimals()) / TOKEN_PRICE_MULTIPLIER
     if self.totalSupply > 0:
         new_liquidity = new_liquidity * self.totalSupply / PriceOracle(self.priceOracleAddress).poolSize(self)
     else:
@@ -100,7 +101,13 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
 
     token_price: uint256 = self.tokenPrice(token_address)
     # amount (in USD) = amount(in contract tokens) * poolSize / totalSupply
-    token_amount: uint256 = amount * PriceOracle(self.priceOracleAddress).poolSize(self) / self.totalSupply
+    # token_amount (in ERC20 token) = amount (in USD) / ERC20_token_price
+    # (where ERC20_token_price = token_price / TOKEN_PRICE_MULTIPLIER)
+    # as the result we have:
+    #  token_amount = amount * poolSize / totalSupply / token_price * TOKEN_PRICE_MULTIPLIER
+    # Also tokens have different number of decimals, so we should divide amount by 10^decimals_difference
+
+    token_amount: uint256 = amount * PriceOracle(self.priceOracleAddress).poolSize(self) * TOKEN_PRICE_MULTIPLIER / token_price / 10**(self.decimals - ERC20(token_address).decimals()) / self.totalSupply
 
     tradeFee: uint256 = 0
     ownerFee: uint256 = 0
@@ -109,11 +116,6 @@ def removeLiquidity(token_address: address, amount: uint256, deadline: timestamp
         ownerFee = amount * self.feesInt['ownerFee'] / FEE_MULTIPLIER
         token_amount = token_amount * (FEE_MULTIPLIER - self.feesInt['ownerFee'] - self.feesInt['tradeFee']) / FEE_MULTIPLIER
 
-    # convert contract tokens to selected by user
-    # token_amount (in ERC20 token) = amount (in USD) / ERC20_token_price
-    # (where ERC20_token_price = token_price / TOKEN_PRICE_MULTIPLIER)
-    # Also tokens have different number of decimals, so we should divide amount by 10^decimals_difference
-    token_amount = token_amount * TOKEN_PRICE_MULTIPLIER / token_price / 10**(self.decimals - ERC20(token_address).decimals())
 
     self.balanceOf[msg.sender] -= amount
     self.balanceOf[self.owner] += ownerFee
