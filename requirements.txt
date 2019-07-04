@@ -3,3 +3,4 @@ web3==4.8.2
 py-evm==0.2.0a34
 eth-tester[py-evm]==0.1.0b33
 pytest
+pytest-parallel==0.0.9

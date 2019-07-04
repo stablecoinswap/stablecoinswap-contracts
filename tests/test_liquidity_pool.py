@@ -2,6 +2,10 @@ from decimal import (
     Decimal, getcontext
 )
 
+from math import (
+    floor, ceil
+)
+
 from tests.constants import (
     DEADLINE
 )
@@ -41,7 +45,7 @@ def test_add_liquidity(w3, contract, DAI_token, USDC_token, price_oracle, assert
     USDC_token.approve(contract.address, 15 * 10**6, transact={'from': user})
 
     DAI_PRICE = 1
-    USDC_PRICE = 1.2
+    USDC_PRICE = Decimal('1.2')
     price_oracle.updatePrice(DAI_token.address, DAI_PRICE * 10**8, transact={'from': owner})
     price_oracle.updatePrice(USDC_token.address, int(USDC_PRICE * 10**8), transact={'from': owner})
     price_oracle.updateTokenAddress(DAI_token.address, 0, transact={'from': owner})
@@ -59,7 +63,26 @@ def test_add_liquidity(w3, contract, DAI_token, USDC_token, price_oracle, assert
     NEW_DAI_PRICE = 1.5
     price_oracle.updatePrice(DAI_token.address, int(NEW_DAI_PRICE * 10**8), transact={'from': owner})
     assert contract.totalSupply() == DAI_ADDED * DAI_PRICE + USDC_ADDED * USDC_PRICE * 10**(18-6)
-    assert price_oracle.poolSize(contract.address) == DAI_ADDED * NEW_DAI_PRICE + USDC_ADDED * USDC_PRICE * 10**(18-6)
+    assert price_oracle.poolSize(contract.address) == DAI_ADDED * NEW_DAI_PRICE + int(USDC_ADDED * USDC_PRICE * 10**(18-6))
+
+    # following asserts are necessary to test a rounding
+    # add 1 DAI at the lowest level of precision (10^(-18) DAI token)
+    contract.addLiquidity(DAI_token.address, 1, DEADLINE, transact={'from': owner})
+    # it will not increase totalSupply because 10^(-18) DAI costs
+    # less than 10^(-18) stablecoinswap contract token
+    assert contract.totalSupply() == DAI_ADDED * DAI_PRICE + USDC_ADDED * USDC_PRICE * 10**(18-6)
+    DAI_ADDED = DAI_ADDED + 1 # 10^18 + 1
+
+    # tests for price values (price multiplier is 10**8):
+    # the absolute minimum + 1 (at the lowest level of precision) and the maximum - 1
+    DAI_MIN_PRICE = 0.01000001
+    price_oracle.updatePrice(DAI_token.address, int(DAI_MIN_PRICE * 10**8), transact={'from': owner})
+    assert price_oracle.poolSize(contract.address) == DAI_ADDED * DAI_MIN_PRICE + int(USDC_ADDED * USDC_PRICE * 10**(18-6))
+
+    DAI_MAX_PRICE = Decimal('99.99999999')
+    price_oracle.updatePrice(DAI_token.address, int(DAI_MAX_PRICE * 10**8), transact={'from': owner})
+
+    assert price_oracle.poolSize(contract.address) == floor(Decimal(DAI_ADDED) * Decimal(DAI_MAX_PRICE)) + Decimal(USDC_ADDED) * Decimal(USDC_PRICE) * Decimal(10**(18-6))
 
 def test_liquidity_pool(w3, contract, DAI_token, USDC_token, price_oracle, assert_fail):
     owner = w3.eth.accounts[0]
@@ -187,8 +210,8 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, price_oracle, asser
     # owner removes remaining liquidity
     assert DAI_token.balanceOf(contract.address) == DAI_ADDED * 0.003
     new_total_liquidity = owner_fee
-    getcontext().prec = 18
-    amount_to_remove = int(Decimal(DAI_ADDED) * Decimal(0.003) * Decimal(TOKEN_PRICE) * Decimal(new_total_liquidity) / Decimal(new_pool_size))
+    getcontext().prec = 28
+    amount_to_remove = int(Decimal(DAI_ADDED) * Decimal('0.003') * Decimal(TOKEN_PRICE) * Decimal(new_total_liquidity) / Decimal(new_pool_size))
     contract.removeLiquidity(DAI_token.address, amount_to_remove, DEADLINE, transact={'from': owner})
     assert DAI_token.balanceOf(contract.address) == 0
     amount_to_remove = new_total_liquidity - amount_to_remove
@@ -198,3 +221,74 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, price_oracle, asser
 
     # Can add liquidity again after all liquidity is divested
     contract.addLiquidity(DAI_token.address, DAI_ADDED, DEADLINE, transact={'from': user1})
+
+def test_fees(w3, contract, DAI_token, USDC_token, price_oracle, assert_fail):
+    owner = w3.eth.accounts[0]
+    user_dai = w3.eth.accounts[1]
+    user_usdc = w3.eth.accounts[2]
+    TOKEN_PRICE = Decimal('0.99999999')
+
+    # One use adds 10 DAI
+    DAI_token.transfer(user_dai, 25*10**18, transact={})
+    DAI_token.approve(contract.address, 25*10**18, transact={'from': user_dai})
+    DAI_10 = 10 * 10**18 # 10 DAI
+    price_oracle.updatePrice(DAI_token.address, int(TOKEN_PRICE * 10**8), transact={'from': owner})
+    price_oracle.updateTokenAddress(DAI_token.address, 0, transact={'from': owner})
+    contract.addLiquidity(DAI_token.address, DAI_10, DEADLINE, transact={'from': user_dai})
+
+    # Another user adds 15 USDC
+    USDC_token.transfer(user_usdc, 42*10**6, transact={})
+    USDC_token.approve(contract.address, 42*10**6, transact={'from': user_usdc})
+    USDC_15 = 15 * 10**6 # 15 USDC
+    price_oracle.updatePrice(USDC_token.address, int(TOKEN_PRICE * 10**8), transact={'from': owner})
+    price_oracle.updateTokenAddress(USDC_token.address, 1, transact={'from': owner})
+    contract.addLiquidity(USDC_token.address, USDC_15, DEADLINE, transact={'from': user_usdc})
+
+    # 10 DAI + 15 USDC total, both at the same price
+    TOTAL_SUPPLY_BEFORE = Decimal(25) * Decimal(10**18) * TOKEN_PRICE
+    assert contract.totalSupply() == TOTAL_SUPPLY_BEFORE
+    assert contract.balanceOf(user_dai) == DAI_10 * TOKEN_PRICE
+    assert contract.balanceOf(user_usdc) == USDC_15 * 10**(18-6) * TOKEN_PRICE
+    assert contract.poolOwnership(user_dai) == Decimal('0.4')
+    assert contract.poolOwnership(user_usdc) == Decimal('0.6')
+
+    # set fees 0.2% and 0.001% (min fee value)
+    contract.updateFee(b'tradeFee', Decimal('0.002'), transact={'from': owner})
+    contract.updateFee(b'ownerFee', Decimal('0.00001'), transact={'from': owner})
+    TOTAL_FEE_PERCENTAGE = Decimal('0.00201')
+
+    # At this step 1 contract token (10**18 base units) == 1 USD
+    POOL_SIZE_BEFORE = TOTAL_SUPPLY_BEFORE
+    assert price_oracle.poolSize(contract.address) == POOL_SIZE_BEFORE
+
+    # one user removes 0.01 USDC
+    usdc_to_remove = Decimal('0.01')
+    amount_to_remove = ceil(usdc_to_remove * 10**18 * TOKEN_PRICE)
+    owner_fee = int(amount_to_remove * 0.00001)
+    usdc_received = int(usdc_to_remove * 10**6 * (Decimal(1) - TOTAL_FEE_PERCENTAGE))
+    new_total_supply = TOTAL_SUPPLY_BEFORE - amount_to_remove + owner_fee
+    new_pool_size = POOL_SIZE_BEFORE - int(usdc_received * 10**(18-6) * TOKEN_PRICE)
+
+    contract.removeLiquidity(USDC_token.address, amount_to_remove, DEADLINE, transact={'from': user_dai})
+
+    assert contract.totalSupply() == new_total_supply
+    assert price_oracle.poolSize(contract.address) == new_pool_size
+    assert USDC_token.balanceOf(user_dai) == usdc_received
+    assert contract.balanceOf(owner) == owner_fee
+    owner_balance = owner_fee
+
+    # another user removes 0.001 DAI
+    dai_to_remove = Decimal('0.001')
+    amount_to_remove = ceil(dai_to_remove * 10**18 * TOKEN_PRICE * new_total_supply / new_pool_size)
+    owner_fee = int(amount_to_remove * 0.00001)
+    owner_balance += owner_fee
+    dai_received = int(dai_to_remove * 10**18 * (Decimal(1) - TOTAL_FEE_PERCENTAGE))
+    new_total_supply = new_total_supply - amount_to_remove + owner_fee
+    new_pool_size = new_pool_size - int(dai_received * TOKEN_PRICE)
+
+    contract.removeLiquidity(DAI_token.address, amount_to_remove, DEADLINE, transact={'from': user_usdc})
+
+    assert contract.totalSupply() == new_total_supply
+    assert price_oracle.poolSize(contract.address) == new_pool_size
+    assert contract.balanceOf(owner) == owner_balance
+    assert DAI_token.balanceOf(user_usdc) == dai_received

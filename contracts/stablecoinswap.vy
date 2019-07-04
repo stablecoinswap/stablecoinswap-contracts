@@ -75,7 +75,8 @@ def addLiquidity(token_address: address, erc20_token_amount: uint256, deadline: 
     assert ERC20(token_address).balanceOf(msg.sender) >= erc20_token_amount
     assert ERC20(token_address).allowance(msg.sender, self) >= erc20_token_amount
 
-    new_liquidity: uint256 = self.tokenPrice(token_address) * erc20_token_amount / TOKEN_PRICE_MULTIPLIER * 10**(self.decimals - ERC20(token_address).decimals())
+    # it is better to divide at the very end of the expression due to rounding issues
+    new_liquidity: uint256 = self.tokenPrice(token_address) * erc20_token_amount * 10**(self.decimals - ERC20(token_address).decimals()) / TOKEN_PRICE_MULTIPLIER
     if self.totalSupply > 0:
         new_liquidity = new_liquidity * self.totalSupply / PriceOracle(self.priceOracleAddress).poolSize(self)
     else:
@@ -99,15 +100,15 @@ def removeLiquidity(token_address: address, stableswap_token_amount: uint256, de
     assert self.totalSupply > 0
 
     token_price: uint256 = self.tokenPrice(token_address)
-    usd_amount: uint256 = stableswap_token_amount * PriceOracle(self.priceOracleAddress).poolSize(self) / self.totalSupply
+    # erc20_token_amount = stableswapt_token_amount * poolSize / totalSupply / token_price * TOKEN_PRICE_MULTIPLIER
+    # But it is better to divide at the very end of the expression due to rounding
+    erc20_token_amount: uint256 = stableswap_token_amount * PriceOracle(self.priceOracleAddress).poolSize(self) * TOKEN_PRICE_MULTIPLIER / token_price / self.totalSupply / 10**(self.decimals - ERC20(token_address).decimals())
 
     ownerFee: uint256 = 0
 
     if msg.sender != self.owner:
         ownerFee = stableswap_token_amount * self.feesInt['ownerFee'] / FEE_MULTIPLIER
-        usd_amount = usd_amount * (FEE_MULTIPLIER - self.feesInt['ownerFee'] - self.feesInt['tradeFee']) / FEE_MULTIPLIER
-
-    erc20_token_amount: uint256 = usd_amount * TOKEN_PRICE_MULTIPLIER / token_price / 10**(self.decimals - ERC20(token_address).decimals())
+        erc20_token_amount = erc20_token_amount * (FEE_MULTIPLIER - self.feesInt['ownerFee'] - self.feesInt['tradeFee']) / FEE_MULTIPLIER
 
     self.balanceOf[msg.sender] -= stableswap_token_amount
     self.balanceOf[self.owner] += ownerFee
