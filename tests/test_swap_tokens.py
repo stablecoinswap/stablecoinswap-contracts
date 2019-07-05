@@ -45,7 +45,7 @@ def test_swap_tokens(w3, contract, price_oracle, DAI_token, USDC_token, assert_f
     assert USDC_token.balanceOf(user_address) == OUTPUT_AMOUNT
     assert USDC_token.balanceOf(contract.address) == USDC_ADDED - OUTPUT_AMOUNT
     assert price_oracle.poolSize(contract.address) == USDC_ADDED * 10**(18-6) + SWAP_FEE
-    owner_fee = INPUT_AMOUNT * DAI_TOKEN_PRICE / USDC_TOKEN_PRICE * 0.001
+    # owner_fee = INPUT_AMOUNT * DAI_TOKEN_PRICE / USDC_TOKEN_PRICE * 0.001
     total_supply_before = USDC_ADDED * 10**(18-6)
     # pool_balance_before = USDC_ADDED * 10**(18-6) + (SWAP_FEE - owner_fee) * USDC_TOKEN_PRICE
     owner_shares = 1048898656410768 # total_supply_before * owner_fee / pool_balance_before
@@ -68,6 +68,6 @@ def test_swap_tokens(w3, contract, price_oracle, DAI_token, USDC_token, assert_f
     assert_fail(lambda: contract.swapTokens(DAI_token.address, USDC_token.address, INPUT_AMOUNT, MIN_OUTPUT_AMOUNT, DEADLINE, transact={'from': user_address}))
     contract.updateInputToken(DAI_token.address, True, transact={'from': owner})
     # permissions['tradingAllowed'] should be True
-    contract.updatePermission(b'tradingAllowed', False, transact={'from': owner})
+    contract.updatePermission('tradingAllowed', False, transact={'from': owner})
     assert_fail(lambda: contract.swapTokens(DAI_token.address, USDC_token.address, INPUT_AMOUNT, MIN_OUTPUT_AMOUNT, DEADLINE, transact={'from': user_address}))
-    contract.updatePermission(b'tradingAllowed', True, transact={'from': owner})
+    contract.updatePermission('tradingAllowed', True, transact={'from': owner})

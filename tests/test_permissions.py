@@ -3,18 +3,18 @@ def test_permissions(w3, contract, assert_fail):
   user = w3.eth.accounts[1]
 
   # after initialization
-  assert contract.permissions(b'liquidityAddingAllowed')
-  assert contract.permissions(b'liquidityRemovingAllowed')
-  assert contract.permissions(b'tradingAllowed')
+  assert contract.permissions('liquidityAddingAllowed')
+  assert contract.permissions('liquidityRemovingAllowed')
+  assert contract.permissions('tradingAllowed')
 
-  contract.updatePermission(b'liquidityAddingAllowed', False, transact={'from': owner})
-  assert not contract.permissions(b'liquidityAddingAllowed')
+  contract.updatePermission('liquidityAddingAllowed', False, transact={'from': owner})
+  assert not contract.permissions('liquidityAddingAllowed')
 
   # only owner can change permission
-  assert_fail(lambda: contract.updatePermission(b'liquidityRemovingAllowed', False, transact={'from': user}))
-  contract.updatePermission(b'liquidityRemovingAllowed', False)
-  assert contract.permissions(b'liquidityRemovingAllowed')
+  assert_fail(lambda: contract.updatePermission('liquidityRemovingAllowed', False, transact={'from': user}))
+  contract.updatePermission('liquidityRemovingAllowed', False)
+  assert contract.permissions('liquidityRemovingAllowed')
 
   # after permission was disabled it's possible to enable it again
-  contract.updatePermission(b'liquidityAddingAllowed', True, transact={'from': owner})
-  assert contract.permissions(b'liquidityAddingAllowed')
+  contract.updatePermission('liquidityAddingAllowed', True, transact={'from': owner})
+  assert contract.permissions('liquidityAddingAllowed')

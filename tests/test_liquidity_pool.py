@@ -97,10 +97,10 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, price_oracle, asser
     price_oracle.updateTokenAddress(DAI_token.address, 0, transact={'from': owner})
 
     # permissions['liquidityAddingAllowed'] should be True
-    assert contract.permissions(b'liquidityAddingAllowed')
-    contract.updatePermission(b'liquidityAddingAllowed', False, transact={'from': owner})
+    assert contract.permissions('liquidityAddingAllowed')
+    contract.updatePermission('liquidityAddingAllowed', False, transact={'from': owner})
     assert_fail(lambda: contract.addLiquidity(DAI_token.address, DAI_ADDED, DEADLINE, transact={'from': user1}))
-    contract.updatePermission(b'liquidityAddingAllowed', True, transact={'from': owner})
+    contract.updatePermission('liquidityAddingAllowed', True, transact={'from': owner})
     contract.addLiquidity(DAI_token.address, DAI_ADDED, DEADLINE, transact={'from': user1})
 
     USDC_token.transfer(user2, 42*10**6, transact={})
@@ -142,10 +142,10 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, price_oracle, asser
     assert_fail(lambda: contract.removeLiquidity(DAI_token.address, DAI_ADDED * TOKEN_PRICE + 1, DEADLINE, transact={'from': user2}))
 
     # permissions['liquidityRemovingAllowed'] should be True
-    assert contract.permissions(b'liquidityRemovingAllowed')
-    contract.updatePermission(b'liquidityRemovingAllowed', False, transact={'from': owner})
+    assert contract.permissions('liquidityRemovingAllowed')
+    contract.updatePermission('liquidityRemovingAllowed', False, transact={'from': owner})
     assert_fail(lambda: contract.removeLiquidity(DAI_token.address, DAI_ADDED * TOKEN_PRICE, DEADLINE, transact={'from': user2}))
-    contract.updatePermission(b'liquidityRemovingAllowed', True, transact={'from': owner})
+    contract.updatePermission('liquidityRemovingAllowed', True, transact={'from': owner})
 
     # First and second liquidity providers remove their remaining liquidity
     TOTAL_SUPPLY_BEFORE = (DAI_ADDED + USDC_ADDED * 10**(18-6)) * TOKEN_PRICE
@@ -253,8 +253,8 @@ def test_fees(w3, contract, DAI_token, USDC_token, price_oracle, assert_fail):
     assert contract.poolOwnership(user_usdc) == Decimal('0.6')
 
     # set fees 0.2% and 0.001% (min fee value)
-    contract.updateFee(b'tradeFee', Decimal('0.002'), transact={'from': owner})
-    contract.updateFee(b'ownerFee', Decimal('0.00001'), transact={'from': owner})
+    contract.updateFee('tradeFee', Decimal('0.002'), transact={'from': owner})
+    contract.updateFee('ownerFee', Decimal('0.00001'), transact={'from': owner})
     TOTAL_FEE_PERCENTAGE = Decimal('0.00201')
 
     # At this step 1 contract token (10**18 base units) == 1 USD
