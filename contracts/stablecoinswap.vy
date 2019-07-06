@@ -75,7 +75,7 @@ def addLiquidity(token_address: address, erc20_token_amount: uint256, deadline: 
     assert ERC20(token_address).balanceOf(msg.sender) >= erc20_token_amount
     assert ERC20(token_address).allowance(msg.sender, self) >= erc20_token_amount
 
-    # it is better to divide at the very end of the expression due to rounding issues
+    # It's better to divide at the very end for a higher precision
     new_liquidity: uint256 = self.tokenPrice(token_address) * erc20_token_amount * 10**(self.decimals - ERC20(token_address).decimals()) / TOKEN_PRICE_MULTIPLIER
     if self.totalSupply > 0:
         new_liquidity = new_liquidity * self.totalSupply / PriceOracle(self.priceOracleAddress).poolSize(self)
@@ -101,7 +101,7 @@ def removeLiquidity(token_address: address, stableswap_token_amount: uint256, de
 
     token_price: uint256 = self.tokenPrice(token_address)
     # erc20_token_amount = stableswapt_token_amount * poolSize / totalSupply / token_price * TOKEN_PRICE_MULTIPLIER
-    # But it is better to divide at the very end of the expression due to rounding
+    # It's better to divide at the very end for a higher precision
     erc20_token_amount: uint256 = stableswap_token_amount * PriceOracle(self.priceOracleAddress).poolSize(self) * TOKEN_PRICE_MULTIPLIER / token_price / self.totalSupply / 10**(self.decimals - ERC20(token_address).decimals())
 
     ownerFee: uint256 = 0
