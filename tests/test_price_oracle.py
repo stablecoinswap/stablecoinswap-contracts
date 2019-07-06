@@ -26,7 +26,6 @@ def test_price_oracle(w3, DAI_token, price_oracle, assert_fail):
 
 def test_pool_size(w3, contract, price_oracle, DAI_token, USDC_token, assert_fail):
   owner = w3.eth.defaultAccount
-  user = w3.eth.accounts[1]
 
   price_oracle.updatePrice(DAI_token.address, 2 * 10**8, transact={'from': owner})
   price_oracle.updatePrice(USDC_token.address, 3 * 10**8, transact={'from': owner})
