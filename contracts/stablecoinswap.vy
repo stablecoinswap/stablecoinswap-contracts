@@ -154,7 +154,8 @@ def swapTokens(input_token: address, output_token: address, erc20_input_amount: 
     ownerFee *= output_token_price / TOKEN_PRICE_MULTIPLIER
     new_owner_shares: uint256 = self.totalSupply * ownerFee / (pool_size + tradeFee)
 
-    token_divider: uint256 = 10**(self.decimals - ERC20(output_token).decimals())
+    output_token_decimals: uint256 = ERC20(output_token).decimals()
+    token_divider: uint256 = 10**(self.decimals - output_token_decimals)
     erc20_output_amount = erc20_output_amount / token_divider
     assert erc20_output_amount >= erc20_min_output_amount
 
