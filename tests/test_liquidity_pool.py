@@ -234,7 +234,9 @@ def test_fees(w3, contract, DAI_token, USDC_token, price_oracle, assert_fail):
     DAI_10 = 10 * 10**18 # 10 DAI
     price_oracle.updatePrice(DAI_token.address, int(TOKEN_PRICE * 10**8), transact={'from': owner})
     price_oracle.updateTokenAddress(DAI_token.address, 0, transact={'from': owner})
-    contract.addLiquidity(DAI_token.address, DAI_10, DEADLINE, transact={'from': user_dai})
+    tx_hash = contract.addLiquidity(DAI_token.address, DAI_10, DEADLINE, transact={'from': user_dai})
+    transaction = w3.eth.getTransactionReceipt(tx_hash)
+    assert transaction['gasUsed'] < 180000
 
     # Another user adds 15 USDC
     USDC_token.transfer(user_usdc, 42*10**6, transact={})
@@ -242,7 +244,10 @@ def test_fees(w3, contract, DAI_token, USDC_token, price_oracle, assert_fail):
     USDC_15 = 15 * 10**6 # 15 USDC
     price_oracle.updatePrice(USDC_token.address, int(TOKEN_PRICE * 10**8), transact={'from': owner})
     price_oracle.updateTokenAddress(USDC_token.address, 1, transact={'from': owner})
-    contract.addLiquidity(USDC_token.address, USDC_15, DEADLINE, transact={'from': user_usdc})
+
+    tx_hash = contract.addLiquidity(USDC_token.address, USDC_15, DEADLINE, transact={'from': user_usdc})
+    transaction = w3.eth.getTransactionReceipt(tx_hash)
+    assert transaction['gasUsed'] < 180000
 
     # 10 DAI + 15 USDC total, both at the same price
     TOTAL_SUPPLY_BEFORE = Decimal(25) * Decimal(10**18) * TOKEN_PRICE
@@ -269,7 +274,9 @@ def test_fees(w3, contract, DAI_token, USDC_token, price_oracle, assert_fail):
     new_total_supply = TOTAL_SUPPLY_BEFORE - amount_to_remove + owner_fee
     new_pool_size = POOL_SIZE_BEFORE - int(usdc_received * 10**(18-6) * TOKEN_PRICE)
 
-    contract.removeLiquidity(USDC_token.address, amount_to_remove, DEADLINE, transact={'from': user_dai})
+    tx_hash = contract.removeLiquidity(USDC_token.address, amount_to_remove, DEADLINE, transact={'from': user_dai})
+    transaction = w3.eth.getTransactionReceipt(tx_hash)
+    assert transaction['gasUsed'] < 180000
 
     assert contract.totalSupply() == new_total_supply
     assert price_oracle.poolSize(contract.address) == new_pool_size

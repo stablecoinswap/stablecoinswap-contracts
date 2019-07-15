@@ -28,7 +28,8 @@ def poolSize(contract_address: address) -> uint256:
     for ind in range(5):
         token_address = self.supported_tokens[ind]
         if token_address != ZERO_ADDRESS:
-            total += ERC20(token_address).balanceOf(contract_address) * 10**(18 - ERC20(token_address).decimals()) * self.token_prices[token_address] / PRICE_MULTIPLIER
+            decimals: uint256 = ERC20(token_address).decimals()
+            total += ERC20(token_address).balanceOf(contract_address) * 10**(18 - decimals) * self.token_prices[token_address] / PRICE_MULTIPLIER
 
     return total
 
