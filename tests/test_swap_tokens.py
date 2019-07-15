@@ -3,7 +3,7 @@ from decimal import (
 )
 
 from tests.constants import (
-    DEADLINE
+    DEADLINE, MAX_GAS_USED
 )
 
 def test_swap_tokens(w3, contract, price_oracle, DAI_token, USDC_token, assert_fail):
@@ -41,7 +41,7 @@ def test_swap_tokens(w3, contract, price_oracle, DAI_token, USDC_token, assert_f
 
     tx_hash = contract.swapTokens(DAI_token.address, USDC_token.address, INPUT_AMOUNT, MIN_OUTPUT_AMOUNT, DEADLINE, transact={'from': user_address})
     transaction = w3.eth.getTransactionReceipt(tx_hash)
-    assert transaction['gasUsed'] < 180000
+    assert transaction['gasUsed'] < MAX_GAS_USED
 
     assert DAI_token.balanceOf(user_address) == DAI_ADDED - INPUT_AMOUNT
     assert DAI_token.balanceOf(contract.address) == INPUT_AMOUNT

@@ -7,7 +7,7 @@ from math import (
 )
 
 from tests.constants import (
-    DEADLINE
+    DEADLINE, MAX_GAS_USED
 )
 
 def test_initial_balances(w3, contract):
@@ -236,7 +236,7 @@ def test_fees(w3, contract, DAI_token, USDC_token, price_oracle, assert_fail):
     price_oracle.updateTokenAddress(DAI_token.address, 0, transact={'from': owner})
     tx_hash = contract.addLiquidity(DAI_token.address, DAI_10, DEADLINE, transact={'from': user_dai})
     transaction = w3.eth.getTransactionReceipt(tx_hash)
-    assert transaction['gasUsed'] < 180000
+    assert transaction['gasUsed'] < MAX_GAS_USED
 
     # Another user adds 15 USDC
     USDC_token.transfer(user_usdc, 42*10**6, transact={})
@@ -247,7 +247,7 @@ def test_fees(w3, contract, DAI_token, USDC_token, price_oracle, assert_fail):
 
     tx_hash = contract.addLiquidity(USDC_token.address, USDC_15, DEADLINE, transact={'from': user_usdc})
     transaction = w3.eth.getTransactionReceipt(tx_hash)
-    assert transaction['gasUsed'] < 180000
+    assert transaction['gasUsed'] < MAX_GAS_USED
 
     # 10 DAI + 15 USDC total, both at the same price
     TOTAL_SUPPLY_BEFORE = Decimal(25) * Decimal(10**18) * TOKEN_PRICE
@@ -276,7 +276,7 @@ def test_fees(w3, contract, DAI_token, USDC_token, price_oracle, assert_fail):
 
     tx_hash = contract.removeLiquidity(USDC_token.address, amount_to_remove, DEADLINE, transact={'from': user_dai})
     transaction = w3.eth.getTransactionReceipt(tx_hash)
-    assert transaction['gasUsed'] < 180000
+    assert transaction['gasUsed'] < MAX_GAS_USED
 
     assert contract.totalSupply() == new_total_supply
     assert price_oracle.poolSize(contract.address) == new_pool_size
