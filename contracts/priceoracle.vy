@@ -2,9 +2,9 @@ contract ERC20():
     def balanceOf(_owner: address) -> uint256: constant
     def decimals() -> uint256: constant
 
-MIN_PRICE: constant(uint256) = 1000000 # $0.01
-MAX_PRICE: constant(uint256) = 10000000000 # $100
-PRICE_MULTIPLIER: constant(uint256) = 100000000
+MIN_PRICE: constant(uint256) = 1000000 # 10**6
+MAX_PRICE: constant(uint256) = 100000000000000000000000000 # 10**(8 + 18)
+PRICE_MULTIPLIER: constant(uint256) = 100000000 # 10**8
 
 PriceUpdated: event({token_address: indexed(address), new_price: indexed(uint256)})
 TokenAddressUpdated: event({token_address: indexed(address), token_index: indexed(int128)})
@@ -12,7 +12,7 @@ TokenAddressUpdated: event({token_address: indexed(address), token_index: indexe
 name: public(string[16])
 owner: public(address)
 supported_tokens: public(address[5])
-token_prices: public(map(address, uint256))
+normalized_token_prices: public(map(address, uint256))
 
 @public
 def __init__():
@@ -28,9 +28,8 @@ def poolSize(contract_address: address) -> uint256:
     for ind in range(5):
         token_address = self.supported_tokens[ind]
         if token_address != ZERO_ADDRESS:
-            decimals_difference: uint256 = 18 - ERC20(token_address).decimals()
             contract_balance: uint256 = ERC20(token_address).balanceOf(contract_address)
-            total += contract_balance * 10**decimals_difference * self.token_prices[token_address] / PRICE_MULTIPLIER
+            total += contract_balance * self.normalized_token_prices[token_address] / PRICE_MULTIPLIER
 
     return total
 
@@ -45,13 +44,21 @@ def updateTokenAddress(token_address: address, ind: int128) -> bool:
 
 @public
 # we set token price as uint256:
-# token_price = usd_price * 10**8
-# example: USD price for DAI = $0.97734655, usd price = 97734655
-def updatePrice(token_address: address, usd_price: uint256) -> bool:
+# normalized_usd_price = usd_price * PRICE_MULTIPLIER * 10**(stablecoinswap.decimals - token.decimals)
+# example: USD price for USDC = $0.97734655, normalized_usd_price = 97734655000000000000
+def updatePrice(token_address: address, normalized_usd_price: uint256) -> bool:
     assert msg.sender == self.owner
-    assert MIN_PRICE <= usd_price and usd_price <= MAX_PRICE
+    assert MIN_PRICE <= normalized_usd_price and normalized_usd_price <= MAX_PRICE
 
-    self.token_prices[token_address] = usd_price
-    log.PriceUpdated(token_address, usd_price)
+    self.normalized_token_prices[token_address] = normalized_usd_price
+    log.PriceUpdated(token_address, normalized_usd_price)
 
     return True
+
+@public
+@constant
+# token_price = usd_price * PRICE_MULTIPLIER
+def token_prices(token_address: address) -> uint256:
+    decimals_difference: uint256 = 18 - ERC20(token_address).decimals()
+    token_price: uint256 = self.normalized_token_prices[token_address] / 10**decimals_difference
+    return token_price

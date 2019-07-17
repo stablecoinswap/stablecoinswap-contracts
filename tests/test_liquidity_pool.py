@@ -47,7 +47,7 @@ def test_add_liquidity(w3, contract, DAI_token, USDC_token, price_oracle, assert
     DAI_PRICE = 1
     USDC_PRICE = Decimal('1.2')
     price_oracle.updatePrice(DAI_token.address, DAI_PRICE * 10**8, transact={'from': owner})
-    price_oracle.updatePrice(USDC_token.address, int(USDC_PRICE * 10**8), transact={'from': owner})
+    price_oracle.updatePrice(USDC_token.address, int(USDC_PRICE * 10**8 * 10**12), transact={'from': owner})
     price_oracle.updateTokenAddress(DAI_token.address, 0, transact={'from': owner})
     price_oracle.updateTokenAddress(USDC_token.address, 1, transact={'from': owner})
 
@@ -106,7 +106,7 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, price_oracle, asser
     USDC_token.transfer(user2, 42*10**6, transact={})
     USDC_token.approve(contract.address, 42*10**6, transact={'from': user2})
     USDC_ADDED = 30 * 10**6 # 30 USDC
-    price_oracle.updatePrice(USDC_token.address, INT_TOKEN_PRICE, transact={'from': owner})
+    price_oracle.updatePrice(USDC_token.address, INT_TOKEN_PRICE * 10**12, transact={'from': owner})
     price_oracle.updateTokenAddress(USDC_token.address, 1, transact={'from': owner})
     contract.addLiquidity(USDC_token.address, USDC_ADDED, DEADLINE, transact={'from': user2})
 
@@ -242,7 +242,7 @@ def test_fees(w3, contract, DAI_token, USDC_token, price_oracle, assert_fail):
     USDC_token.transfer(user_usdc, 42*10**6, transact={})
     USDC_token.approve(contract.address, 42*10**6, transact={'from': user_usdc})
     USDC_15 = 15 * 10**6 # 15 USDC
-    price_oracle.updatePrice(USDC_token.address, int(TOKEN_PRICE * 10**8), transact={'from': owner})
+    price_oracle.updatePrice(USDC_token.address, int(TOKEN_PRICE * 10**8 * 10**12), transact={'from': owner})
     price_oracle.updateTokenAddress(USDC_token.address, 1, transact={'from': owner})
 
     tx_hash = contract.addLiquidity(USDC_token.address, USDC_15, DEADLINE, transact={'from': user_usdc})
