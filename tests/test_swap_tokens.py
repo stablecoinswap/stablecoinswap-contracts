@@ -24,7 +24,7 @@ def test_swap_tokens(w3, contract, price_oracle, DAI_token, USDC_token, assert_f
     USDC_token.transfer(w3.eth.defaultAccount, USDC_ADDED, transact={})
     USDC_token.approve(contract.address, USDC_ADDED, transact={'from': owner})
     price_oracle.updatePrice(DAI_token.address, DAI_TOKEN_PRICE, transact={'from': owner})
-    price_oracle.updatePrice(USDC_token.address, USDC_TOKEN_PRICE, transact={'from': owner})
+    price_oracle.updatePrice(USDC_token.address, USDC_TOKEN_PRICE * 10**12, transact={'from': owner})
     price_oracle.updateTokenAddress(DAI_token.address, 0, transact={'from': owner})
     price_oracle.updateTokenAddress(USDC_token.address, 1, transact={'from': owner})
 

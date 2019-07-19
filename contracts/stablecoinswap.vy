@@ -7,7 +7,7 @@ contract ERC20():
 
 contract PriceOracle():
     def poolSize(contract_address: address) -> uint256: constant
-    def token_prices(token_address: address) -> uint256: constant
+    def normalized_token_prices(token_address: address) -> uint256: constant
 
 TOKEN_PRICE_MULTIPLIER: constant(uint256) = 100000000
 FEE_MULTIPLIER: constant(uint256) = 100000
@@ -61,7 +61,7 @@ def __init__(token_addresses: address[3], price_oracle_addr: address):
 @private
 @constant
 def tokenPrice(token_address: address) -> uint256:
-    token_price: uint256 = PriceOracle(self.priceOracleAddress).token_prices(token_address)
+    token_price: uint256 = PriceOracle(self.priceOracleAddress).normalized_token_prices(token_address)
     assert token_price > 0
 
     return token_price
@@ -76,9 +76,8 @@ def addLiquidity(token_address: address, erc20_token_amount: uint256, deadline: 
     assert ERC20(token_address).allowance(msg.sender, self) >= erc20_token_amount
 
     token_price: uint256 = self.tokenPrice(token_address)
-    token_decimals_difference: uint256 = self.decimals - ERC20(token_address).decimals()
     # It's better to divide at the very end for a higher precision
-    new_liquidity: uint256 = token_price * erc20_token_amount * 10**token_decimals_difference / TOKEN_PRICE_MULTIPLIER
+    new_liquidity: uint256 = token_price * erc20_token_amount / TOKEN_PRICE_MULTIPLIER
     if self.totalSupply > 0:
         new_liquidity = new_liquidity * self.totalSupply / PriceOracle(self.priceOracleAddress).poolSize(self)
     else:
@@ -105,11 +104,10 @@ def removeLiquidity(token_address: address, stableswap_token_amount: uint256, de
     assert self.totalSupply > 0
 
     token_price: uint256 = self.tokenPrice(token_address)
-    token_decimals_difference: uint256 = self.decimals - ERC20(token_address).decimals()
     pool_size: uint256 = PriceOracle(self.priceOracleAddress).poolSize(self)
     # erc20_token_amount = stableswapt_token_amount * pool_size / totalSupply / token_price * TOKEN_PRICE_MULTIPLIER
     # It's better to divide at the very end for a higher precision
-    erc20_token_amount: uint256 = stableswap_token_amount * pool_size * TOKEN_PRICE_MULTIPLIER / token_price / self.totalSupply / 10**token_decimals_difference
+    erc20_token_amount: uint256 = stableswap_token_amount * pool_size * TOKEN_PRICE_MULTIPLIER / token_price / self.totalSupply
 
     ownerFee: uint256 = 0
 
@@ -142,10 +140,9 @@ def swapTokens(input_token: address, output_token: address, erc20_input_amount: 
 
     input_token_price: uint256 = self.tokenPrice(input_token)
     output_token_price: uint256 = self.tokenPrice(output_token)
-    input_token_decimals_difference: uint256 = self.decimals - ERC20(input_token).decimals()
 
     # contract_token_amount is an equivalent of an input multiplied by TOKEN_PRICE_MULTIPLIER
-    contract_token_amount: uint256 = erc20_input_amount * 10**input_token_decimals_difference * input_token_price
+    contract_token_amount: uint256 = erc20_input_amount * input_token_price
     tradeFee: uint256 = contract_token_amount * self.feesInt['tradeFee'] / FEE_MULTIPLIER
     ownerFee: uint256 = contract_token_amount * self.feesInt['ownerFee'] / FEE_MULTIPLIER
     contract_token_amount -= tradeFee + ownerFee
@@ -155,8 +152,7 @@ def swapTokens(input_token: address, output_token: address, erc20_input_amount: 
     pool_size_after_swap: uint256 = PriceOracle(self.priceOracleAddress).poolSize(self) + tradeFee
     new_owner_shares: uint256 = self.totalSupply * ownerFee / pool_size_after_swap
 
-    output_token_decimals_difference: uint256 = self.decimals - ERC20(output_token).decimals()
-    erc20_output_amount: uint256 = contract_token_amount / output_token_price / 10**output_token_decimals_difference
+    erc20_output_amount: uint256 = contract_token_amount / output_token_price
     assert erc20_output_amount >= erc20_min_output_amount
 
     self.balanceOf[self.owner] += new_owner_shares
