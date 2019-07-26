@@ -54,11 +54,3 @@ def updatePrice(token_address: address, normalized_usd_price: uint256) -> bool:
     log.PriceUpdated(token_address, normalized_usd_price)
 
     return True
-
-@public
-@constant
-# token_price = usd_price * PRICE_MULTIPLIER
-def token_prices(token_address: address) -> uint256:
-    decimals_difference: uint256 = 18 - ERC20(token_address).decimals()
-    token_price: uint256 = self.normalized_token_prices[token_address] / 10**decimals_difference
-    return token_price
