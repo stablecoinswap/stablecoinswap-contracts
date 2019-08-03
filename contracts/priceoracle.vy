@@ -43,9 +43,9 @@ def updateTokenAddress(token_address: address, ind: int128) -> bool:
     return True
 
 @public
-# we set token price as uint256:
+# Token price is as uint256:
 # normalized_usd_price = usd_price * PRICE_MULTIPLIER * 10**(stablecoinswap.decimals - token.decimals)
-# example: USD price for USDC = $0.97734655, normalized_usd_price = 97734655000000000000
+# Example: USD price for USDC = $0.97734655, normalized_usd_price = 97734655000000000000
 def updatePrice(token_address: address, normalized_usd_price: uint256) -> bool:
     assert msg.sender == self.owner
     assert MIN_PRICE <= normalized_usd_price and normalized_usd_price <= MAX_PRICE
