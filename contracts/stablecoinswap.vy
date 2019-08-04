@@ -96,7 +96,7 @@ def addLiquidity(token_address: address, erc20_token_amount: uint256, deadline: 
 
 # Withdraw erc20 token
 @public
-def removeLiquidity(token_address: address, stableswap_token_amount: uint256, deadline: timestamp) -> bool:
+def removeLiquidity(token_address: address, stableswap_token_amount: uint256, erc20_min_output_amount: uint256, deadline: timestamp) -> bool:
     assert self.outputTokens[token_address]
     assert stableswap_token_amount > 0 and deadline > block.timestamp
     assert self.balanceOf[msg.sender] >= stableswap_token_amount
@@ -119,6 +119,8 @@ def removeLiquidity(token_address: address, stableswap_token_amount: uint256, de
     self.balanceOf[msg.sender] -= stableswap_token_amount
     self.balanceOf[self.owner] += ownerFee
     self.totalSupply -= stableswap_token_amount - ownerFee
+
+    assert erc20_token_amount >= erc20_min_output_amount
 
     # Can't assert the result directly: https://github.com/ethereum/vyper/issues/1468
     transfer_result: bool = ERC20(token_address).transfer(msg.sender, erc20_token_amount)
