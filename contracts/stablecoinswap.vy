@@ -26,6 +26,7 @@ PriceOracleAddressUpdated: event({new_address: indexed(address)})
 Payment: event({amount: uint256(wei), _from: indexed(address)})
 
 name: public(string[32])                                 # Stablecoinswap
+symbol: public(string[6])                                # STABLE
 owner: public(address)                                   # contract owner
 decimals: public(uint256)                                # 18
 totalSupply: public(uint256)                             # total number of contract tokens in existence
@@ -43,6 +44,7 @@ def __init__(token_addresses: address[3], price_oracle_addr: address):
 
     self.owner = msg.sender
     self.name = "Stablecoinswap"
+    self.name = "STABLE"
     self.decimals = 18
     self.permissions["tradingAllowed"] = True
     self.permissions["liquidityAddingAllowed"] = True
