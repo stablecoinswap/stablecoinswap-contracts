@@ -135,17 +135,18 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, price_oracle, asser
     assert USDC_token.balanceOf(contract.address) == USDC_ADDED
 
     # amount > owned (liquidity)
-    assert_fail(lambda: contract.removeLiquidity(USDC_token.address, NEW_USER_TWO_BALANCE + 1, DEADLINE, transact={'from': user2}))
+    assert_fail(lambda: contract.removeLiquidity(USDC_token.address, NEW_USER_TWO_BALANCE + 1, 0, DEADLINE, transact={'from': user2}))
     # deadline < block.timestamp
-    assert_fail(lambda: contract.removeLiquidity(USDC_token.address, TRANSFERRED_AMOUNT, 1, transact={'from': user2}))
+    assert_fail(lambda: contract.removeLiquidity(USDC_token.address, TRANSFERRED_AMOUNT, 0, 1, transact={'from': user2}))
     # amount > token liquidity
-    assert_fail(lambda: contract.removeLiquidity(DAI_token.address, DAI_ADDED * TOKEN_PRICE + 1, DEADLINE, transact={'from': user2}))
+    assert_fail(lambda: contract.removeLiquidity(DAI_token.address, DAI_ADDED * TOKEN_PRICE + 1, 0, DEADLINE, transact={'from': user2}))
 
     # permissions['liquidityRemovingAllowed'] should be True
     assert contract.permissions('liquidityRemovingAllowed')
     contract.updatePermission('liquidityRemovingAllowed', False, transact={'from': owner})
-    assert_fail(lambda: contract.removeLiquidity(DAI_token.address, DAI_ADDED * TOKEN_PRICE, DEADLINE, transact={'from': user2}))
+    assert_fail(lambda: contract.removeLiquidity(DAI_token.address, DAI_ADDED * TOKEN_PRICE, DAI_ADDED * TOKEN_PRICE, DEADLINE, transact={'from': user2}))
     contract.updatePermission('liquidityRemovingAllowed', True, transact={'from': owner})
+
 
     # First and second liquidity providers remove their remaining liquidity
     TOTAL_SUPPLY_BEFORE = (DAI_ADDED + USDC_ADDED * 10**(18-6)) * TOKEN_PRICE
@@ -160,7 +161,10 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, price_oracle, asser
     owner_fee = int(amount_to_remove * 0.001)
     new_total_supply = TOTAL_SUPPLY_BEFORE - amount_to_remove + owner_fee
     new_pool_size = POOL_SIZE_BEFORE - int(amount_to_remove * 0.997)
-    contract.removeLiquidity(DAI_token.address, amount_to_remove, DEADLINE, transact={'from': user2})
+    # amount < erc20_min_output_amount
+    assert_fail(lambda: contract.removeLiquidity(DAI_token.address, amount_to_remove, int(DAI_ADDED * 0.997) + 1, DEADLINE, transact={'from': user2}))
+
+    contract.removeLiquidity(DAI_token.address, amount_to_remove, int(DAI_ADDED * 0.997), DEADLINE, transact={'from': user2})
     assert contract.balanceOf(owner) == owner_fee
     assert DAI_token.balanceOf(user2) == int(DAI_ADDED * 0.997)
     assert contract.totalSupply() == new_total_supply
@@ -177,7 +181,7 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, price_oracle, asser
     new_total_supply = NEW_USER_ONE_BALANCE + owner_fee
     pool_size_change = int(amount_to_transfer * TOKEN_PRICE * 10**(18-6))
     new_pool_size -= pool_size_change
-    contract.removeLiquidity(USDC_token.address, amount_to_remove, DEADLINE, transact={'from': user2})
+    contract.removeLiquidity(USDC_token.address, amount_to_remove, amount_to_transfer, DEADLINE, transact={'from': user2})
     assert contract.totalSupply() == new_total_supply
     assert contract.balanceOf(user2) == 0
     assert contract.balanceOf(owner) == owner_fee
@@ -190,7 +194,7 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, price_oracle, asser
     assert contract.balanceOf(user1) == NEW_USER_ONE_BALANCE
     new_owner_fee = int(NEW_USER_ONE_BALANCE * 0.001)
     amount_to_transfer = int(NEW_USER_ONE_BALANCE * new_pool_size / new_total_supply * 0.997)
-    contract.removeLiquidity(USDC_token.address, NEW_USER_ONE_BALANCE, DEADLINE, transact={'from': user1})
+    contract.removeLiquidity(USDC_token.address, NEW_USER_ONE_BALANCE, int(amount_to_transfer / TOKEN_PRICE / 10**(18-6)), DEADLINE, transact={'from': user1})
     owner_fee += new_owner_fee
     usdc_balance -= int(amount_to_transfer / TOKEN_PRICE / 10**(18-6))
 
@@ -212,10 +216,10 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, price_oracle, asser
     new_total_liquidity = owner_fee
     getcontext().prec = 28
     amount_to_remove = int(Decimal(DAI_ADDED) * Decimal('0.003') * Decimal(TOKEN_PRICE) * Decimal(new_total_liquidity) / Decimal(new_pool_size))
-    contract.removeLiquidity(DAI_token.address, amount_to_remove, DEADLINE, transact={'from': owner})
+    contract.removeLiquidity(DAI_token.address, amount_to_remove, amount_to_remove, DEADLINE, transact={'from': owner})
     assert DAI_token.balanceOf(contract.address) == 0
     amount_to_remove = new_total_liquidity - amount_to_remove
-    contract.removeLiquidity(USDC_token.address, amount_to_remove, DEADLINE, transact={'from': owner})
+    contract.removeLiquidity(USDC_token.address, amount_to_remove, int(amount_to_remove / TOKEN_PRICE / 10**(18-6)), DEADLINE, transact={'from': owner})
     assert USDC_token.balanceOf(contract.address) == 0
     assert contract.balanceOf(owner) == 0
 
@@ -274,7 +278,7 @@ def test_fees(w3, contract, DAI_token, USDC_token, price_oracle, assert_fail):
     new_total_supply = TOTAL_SUPPLY_BEFORE - amount_to_remove + owner_fee
     new_pool_size = POOL_SIZE_BEFORE - int(usdc_received * 10**(18-6) * TOKEN_PRICE)
 
-    tx_hash = contract.removeLiquidity(USDC_token.address, amount_to_remove, DEADLINE, transact={'from': user_dai})
+    tx_hash = contract.removeLiquidity(USDC_token.address, amount_to_remove, 1, DEADLINE, transact={'from': user_dai})
     transaction = w3.eth.getTransactionReceipt(tx_hash)
     assert transaction['gasUsed'] < MAX_GAS_USED
 
@@ -293,7 +297,7 @@ def test_fees(w3, contract, DAI_token, USDC_token, price_oracle, assert_fail):
     new_total_supply = new_total_supply - amount_to_remove + owner_fee
     new_pool_size = new_pool_size - int(dai_received * TOKEN_PRICE)
 
-    contract.removeLiquidity(DAI_token.address, amount_to_remove, DEADLINE, transact={'from': user_usdc})
+    contract.removeLiquidity(DAI_token.address, amount_to_remove, 1, DEADLINE, transact={'from': user_usdc})
 
     assert contract.totalSupply() == new_total_supply
     assert price_oracle.poolSize(contract.address) == new_pool_size
