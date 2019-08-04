@@ -11,7 +11,7 @@ def test_price_oracle(w3, DAI_token, price_oracle, assert_fail):
   user = w3.eth.accounts[1]
 
   assert price_oracle.name() == 'PriceOracle'
-  assert price_oracle.token_prices(DAI_token.address) == 0
+  assert price_oracle.normalized_token_prices(DAI_token.address) == 0
 
   # only owner can update token price
   assert_fail(lambda: price_oracle.updatePrice(DAI_token.address, 97734655, transact={'from': user}))
@@ -20,9 +20,9 @@ def test_price_oracle(w3, DAI_token, price_oracle, assert_fail):
   assert_fail(lambda: price_oracle.updatePrice(DAI_token.address, 10000000001, transact={'from': user}))
 
   price_oracle.updatePrice(DAI_token.address, 97734655, transact={'from': owner})
-  assert price_oracle.token_prices(DAI_token.address) == 97734655
+  assert price_oracle.normalized_token_prices(DAI_token.address) == 97734655
   price_oracle.updatePrice(DAI_token.address, 103349913, transact={'from': owner})
-  assert price_oracle.token_prices(DAI_token.address) == 103349913
+  assert price_oracle.normalized_token_prices(DAI_token.address) == 103349913
 
 def test_pool_size(w3, contract, price_oracle, DAI_token, USDC_token, assert_fail):
   owner = w3.eth.defaultAccount
