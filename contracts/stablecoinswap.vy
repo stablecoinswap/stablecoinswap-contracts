@@ -44,7 +44,7 @@ def __init__(token_addresses: address[3], price_oracle_addr: address):
 
     self.owner = msg.sender
     self.name = "Stablecoinswap"
-    self.name = "STABLE"
+    self.symbol = "STL"
     self.decimals = 18
     self.permissions["tradingAllowed"] = True
     self.permissions["liquidityAddingAllowed"] = True
