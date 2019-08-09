@@ -26,7 +26,7 @@ PriceOracleAddressUpdated: event({new_address: indexed(address)})
 Payment: event({amount: uint256(wei), _from: indexed(address)})
 
 name: public(string[32])                                 # Stablecoinswap
-symbol: public(string[6])                                # STABLE
+symbol: public(string[6])                                # STL
 owner: public(address)                                   # contract owner
 decimals: public(uint256)                                # 18
 totalSupply: public(uint256)                             # total number of contract tokens in existence
