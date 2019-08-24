@@ -48,7 +48,6 @@ def __init__(token_addresses: address[3], price_oracle_addr: address):
     self.decimals = 18
     self.permissions["tradingAllowed"] = True
     self.permissions["liquidityAddingAllowed"] = True
-    self.permissions["liquidityRemovingAllowed"] = True
 
     for i in range(3):
         assert token_addresses[i] != ZERO_ADDRESS
@@ -74,8 +73,6 @@ def addLiquidity(token_address: address, erc20_token_amount: uint256, deadline: 
     assert self.inputTokens[token_address]
     assert deadline > block.timestamp and erc20_token_amount > 0
     assert self.permissions["liquidityAddingAllowed"]
-    assert ERC20(token_address).balanceOf(msg.sender) >= erc20_token_amount
-    assert ERC20(token_address).allowance(msg.sender, self) >= erc20_token_amount
 
     token_price: uint256 = self.tokenPrice(token_address)
     # It's better to divide at the very end for a higher precision
@@ -102,7 +99,6 @@ def removeLiquidity(token_address: address, stableswap_token_amount: uint256, er
     assert self.outputTokens[token_address]
     assert stableswap_token_amount > 0 and deadline > block.timestamp
     assert self.balanceOf[msg.sender] >= stableswap_token_amount
-    assert self.permissions["liquidityRemovingAllowed"]
     assert self.totalSupply > 0
 
     token_price: uint256 = self.tokenPrice(token_address)
@@ -139,8 +135,6 @@ def swapTokens(input_token: address, output_token: address, erc20_input_amount: 
     assert erc20_input_amount > 0 and erc20_min_output_amount > 0
     assert deadline > block.timestamp
     assert self.permissions["tradingAllowed"]
-    assert ERC20(input_token).balanceOf(msg.sender) >= erc20_input_amount
-    assert ERC20(input_token).allowance(msg.sender, self) >= erc20_input_amount
 
     input_token_price: uint256 = self.tokenPrice(input_token)
     output_token_price: uint256 = self.tokenPrice(output_token)

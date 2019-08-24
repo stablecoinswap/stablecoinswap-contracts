@@ -141,13 +141,6 @@ def test_liquidity_pool(w3, contract, DAI_token, USDC_token, price_oracle, asser
     # amount > token liquidity
     assert_fail(lambda: contract.removeLiquidity(DAI_token.address, DAI_ADDED * TOKEN_PRICE + 1, 0, DEADLINE, transact={'from': user2}))
 
-    # permissions['liquidityRemovingAllowed'] should be True
-    assert contract.permissions('liquidityRemovingAllowed')
-    contract.updatePermission('liquidityRemovingAllowed', False, transact={'from': owner})
-    assert_fail(lambda: contract.removeLiquidity(DAI_token.address, DAI_ADDED * TOKEN_PRICE, DAI_ADDED * TOKEN_PRICE, DEADLINE, transact={'from': user2}))
-    contract.updatePermission('liquidityRemovingAllowed', True, transact={'from': owner})
-
-
     # First and second liquidity providers remove their remaining liquidity
     TOTAL_SUPPLY_BEFORE = (DAI_ADDED + USDC_ADDED * 10**(18-6)) * TOKEN_PRICE
     assert contract.totalSupply() == TOTAL_SUPPLY_BEFORE

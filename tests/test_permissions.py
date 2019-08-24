@@ -4,16 +4,12 @@ def test_permissions(w3, contract, assert_fail):
 
   # after initialization
   assert contract.permissions('liquidityAddingAllowed')
-  assert contract.permissions('liquidityRemovingAllowed')
   assert contract.permissions('tradingAllowed')
 
+  # only owner can change permission
+  assert_fail(lambda: contract.updatePermission('liquidityAddingAllowed', False, transact={'from': user}))
   contract.updatePermission('liquidityAddingAllowed', False, transact={'from': owner})
   assert not contract.permissions('liquidityAddingAllowed')
-
-  # only owner can change permission
-  assert_fail(lambda: contract.updatePermission('liquidityRemovingAllowed', False, transact={'from': user}))
-  contract.updatePermission('liquidityRemovingAllowed', False)
-  assert contract.permissions('liquidityRemovingAllowed')
 
   # after permission was disabled it's possible to enable it again
   contract.updatePermission('liquidityAddingAllowed', True, transact={'from': owner})
