@@ -2,7 +2,6 @@ from decimal import Decimal
 
 def test_exchange_rate(w3, contract, price_oracle, DAI_token, USDC_token):
   owner = w3.eth.defaultAccount
-  user = w3.eth.accounts[1]
 
   # initial fee values
   assert contract.fees('tradeFee') == Decimal('0.002')
