@@ -137,15 +137,15 @@ def tokenExchangeRateAfterFees(input_token_address: address, output_token_addres
     # contract_token_amount is an equivalent of an input multiplied by TOKEN_PRICE_MULTIPLIER
     contract_token_amount: uint256 = 10 ** ERC20(input_token_address).decimals() * input_token_price
     fees: uint256 = contract_token_amount * (self.feesInt['tradeFee'] + self.feesInt['ownerFee']) / FEE_MULTIPLIER
-    erc20_output_amount: uint256 = (contract_token_amount - fees) / output_token_price
+    exchange_rate: uint256 = (contract_token_amount - fees) / output_token_price
 
-    return erc20_output_amount
+    return exchange_rate
 
 @public
 @constant
 def tokenOutputAmountAfterFees(input_token_amount: uint256, input_token_address: address, output_token_address: address) -> uint256:
-    erc20_output_amount: uint256 = input_token_amount * self.tokenExchangeRateAfterFees(input_token_address, output_token_address) / 10 ** ERC20(input_token_address).decimals()
-    return erc20_output_amount
+    output_token_amount: uint256 = input_token_amount * self.tokenExchangeRateAfterFees(input_token_address, output_token_address) / 10 ** ERC20(input_token_address).decimals()
+    return output_token_amount
 
 # Trade one erc20 token for another
 @public
