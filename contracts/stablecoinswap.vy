@@ -131,8 +131,6 @@ def removeLiquidity(token_address: address, stableswap_token_amount: uint256, er
 @public
 @constant
 def tokenExchangeRateAfterFees(input_token_address: address, output_token_address: address) -> uint256:
-    assert self.inputTokens[input_token_address] and self.outputTokens[output_token_address]
-
     input_token_price: uint256 = self.tokenPrice(input_token_address)
     output_token_price: uint256 = self.tokenPrice(output_token_address)
 
@@ -146,8 +144,6 @@ def tokenExchangeRateAfterFees(input_token_address: address, output_token_addres
 @public
 @constant
 def tokenOutputAmountAfterFees(input_token_amount: uint256, input_token_address: address, output_token_address: address) -> uint256:
-    assert self.inputTokens[input_token_address] and self.outputTokens[output_token_address]
-
     erc20_output_amount: uint256 = input_token_amount * self.tokenExchangeRateAfterFees(input_token_address, output_token_address) / 10 ** ERC20(input_token_address).decimals()
     return erc20_output_amount
 
