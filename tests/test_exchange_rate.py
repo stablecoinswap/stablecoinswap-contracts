@@ -8,8 +8,8 @@ def test_exchange_rate(w3, contract, price_oracle, DAI_token, USDC_token):
   assert contract.fees('ownerFee') == Decimal('0.001')
 
   # set token prices
-  price_oracle.updatePrice(DAI_token.address, 101 * 10**6, transact={'from': owner}) # $1,01
-  price_oracle.updatePrice(USDC_token.address, 99 * 10**6 * 10**12, transact={'from': owner}) # $0,99
+  price_oracle.updatePrice(DAI_token.address, 101 * 10**6, transact={'from': owner}) # $1.01
+  price_oracle.updatePrice(USDC_token.address, 99 * 10**6 * 10**12, transact={'from': owner}) # $0.99
   price_oracle.updateTokenAddress(DAI_token.address, 0, transact={'from': owner})
   price_oracle.updateTokenAddress(USDC_token.address, 1, transact={'from': owner})
 
@@ -29,8 +29,8 @@ def test_output_amount(w3, contract, price_oracle, DAI_token, USDC_token):
   assert contract.fees('ownerFee') == Decimal('0.001')
 
   # set token prices
-  price_oracle.updatePrice(DAI_token.address, 101 * 10**6, transact={'from': owner}) # $1,01
-  price_oracle.updatePrice(USDC_token.address, 99 * 10**6 * 10**12, transact={'from': owner}) # $0,99
+  price_oracle.updatePrice(DAI_token.address, 101 * 10**6, transact={'from': owner}) # $1.01
+  price_oracle.updatePrice(USDC_token.address, 99 * 10**6 * 10**12, transact={'from': owner}) # $0,.9
   price_oracle.updateTokenAddress(DAI_token.address, 0, transact={'from': owner})
   price_oracle.updateTokenAddress(USDC_token.address, 1, transact={'from': owner})
 
