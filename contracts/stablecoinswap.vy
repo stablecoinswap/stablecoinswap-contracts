@@ -128,6 +128,25 @@ def removeLiquidity(token_address: address, stableswap_token_amount: uint256, er
 
     return True
 
+@public
+@constant
+def tokenExchangeRateAfterFees(input_token_address: address, output_token_address: address) -> uint256:
+    input_token_price: uint256 = self.tokenPrice(input_token_address)
+    output_token_price: uint256 = self.tokenPrice(output_token_address)
+
+    # contract_token_amount is an equivalent of an input multiplied by TOKEN_PRICE_MULTIPLIER
+    contract_token_amount: uint256 = 10 ** ERC20(input_token_address).decimals() * input_token_price
+    fees: uint256 = contract_token_amount * (self.feesInt['tradeFee'] + self.feesInt['ownerFee']) / FEE_MULTIPLIER
+    exchange_rate: uint256 = (contract_token_amount - fees) / output_token_price
+
+    return exchange_rate
+
+@public
+@constant
+def tokenOutputAmountAfterFees(input_token_amount: uint256, input_token_address: address, output_token_address: address) -> uint256:
+    output_token_amount: uint256 = input_token_amount * self.tokenExchangeRateAfterFees(input_token_address, output_token_address) / 10 ** ERC20(input_token_address).decimals()
+    return output_token_amount
+
 # Trade one erc20 token for another
 @public
 def swapTokens(input_token: address, output_token: address, erc20_input_amount: uint256, erc20_min_output_amount: uint256, deadline: timestamp) -> bool:
@@ -137,20 +156,13 @@ def swapTokens(input_token: address, output_token: address, erc20_input_amount: 
     assert self.permissions["tradingAllowed"]
 
     input_token_price: uint256 = self.tokenPrice(input_token)
-    output_token_price: uint256 = self.tokenPrice(output_token)
+    tradeFee: uint256 = erc20_input_amount * input_token_price * self.feesInt['tradeFee'] / FEE_MULTIPLIER / TOKEN_PRICE_MULTIPLIER
+    ownerFee: uint256 = erc20_input_amount * input_token_price * self.feesInt['ownerFee'] / FEE_MULTIPLIER / TOKEN_PRICE_MULTIPLIER
 
-    # contract_token_amount is an equivalent of an input multiplied by TOKEN_PRICE_MULTIPLIER
-    contract_token_amount: uint256 = erc20_input_amount * input_token_price
-    tradeFee: uint256 = contract_token_amount * self.feesInt['tradeFee'] / FEE_MULTIPLIER
-    ownerFee: uint256 = contract_token_amount * self.feesInt['ownerFee'] / FEE_MULTIPLIER
-    contract_token_amount -= tradeFee + ownerFee
-
-    tradeFee /= TOKEN_PRICE_MULTIPLIER
-    ownerFee /= TOKEN_PRICE_MULTIPLIER
     pool_size_after_swap: uint256 = PriceOracle(self.priceOracleAddress).poolSize(self) + tradeFee
     new_owner_shares: uint256 = self.totalSupply * ownerFee / pool_size_after_swap
 
-    erc20_output_amount: uint256 = contract_token_amount / output_token_price
+    erc20_output_amount: uint256 = self.tokenOutputAmountAfterFees(erc20_input_amount, input_token, output_token)
     assert erc20_output_amount >= erc20_min_output_amount
 
     self.balanceOf[self.owner] += new_owner_shares
