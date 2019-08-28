@@ -128,6 +128,7 @@ def removeLiquidity(token_address: address, stableswap_token_amount: uint256, er
 
     return True
 
+# Note that due to rounding, the fees could be slightly higher for the tokens with smaller decimal precision.
 @public
 @constant
 def tokenExchangeRateAfterFees(input_token_address: address, output_token_address: address) -> uint256:
