@@ -67,8 +67,20 @@ def DAI_token(w3):
     return contract
 
 @pytest.fixture
+def GUSD_token(w3):
+    args = ['Gemini Test Token', 'GUSD', 2, 100000*10**2]
+    contract = create_contract(w3, 'tests/support/ERC20.vy', *args)
+    return contract
+
+@pytest.fixture
 def USDC_token(w3):
     args = ['USDC Test Token', 'USDC', 6, 100000*10**6]
+    contract = create_contract(w3, 'tests/support/ERC20.vy', *args)
+    return contract
+
+@pytest.fixture
+def ZUSD_token(w3):
+    args = ['Zero Test Token', 'ZUSD', 1, 100000*10]
     contract = create_contract(w3, 'tests/support/ERC20.vy', *args)
     return contract
 
@@ -78,8 +90,8 @@ def price_oracle(w3):
     return contract
 
 @pytest.fixture
-def contract(w3, DAI_token, USDC_token, price_oracle):
-    available_tokens = [DAI_token.address, USDC_token.address, DAI_token.address]
+def contract(w3, DAI_token, GUSD_token, USDC_token, price_oracle):
+    available_tokens = [DAI_token.address, USDC_token.address, GUSD_token.address]
     args = [available_tokens, price_oracle.address]
     contract = create_contract(w3, 'contracts/stablecoinswap.vy', *args)
     return contract

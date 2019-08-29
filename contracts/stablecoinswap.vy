@@ -103,9 +103,9 @@ def removeLiquidity(token_address: address, stableswap_token_amount: uint256, er
 
     token_price: uint256 = self.tokenPrice(token_address)
     pool_size: uint256 = PriceOracle(self.priceOracleAddress).poolSize(self)
-    # erc20_token_amount = stableswapt_token_amount * pool_size / totalSupply / token_price * TOKEN_PRICE_MULTIPLIER
+    # erc20_token_amount = stableswap_token_amount * pool_size / totalSupply / token_price * TOKEN_PRICE_MULTIPLIER
     # It's better to divide at the very end for a higher precision
-    erc20_token_amount: uint256 = stableswap_token_amount * pool_size * TOKEN_PRICE_MULTIPLIER / token_price / self.totalSupply
+    erc20_token_amount: uint256 = stableswap_token_amount * pool_size / self.totalSupply
 
     ownerFee: uint256 = 0
 
@@ -113,6 +113,8 @@ def removeLiquidity(token_address: address, stableswap_token_amount: uint256, er
         ownerFee = stableswap_token_amount * self.feesInt['ownerFee'] / FEE_MULTIPLIER
         multiplier_after_fees: uint256 = FEE_MULTIPLIER - self.feesInt['ownerFee'] - self.feesInt['tradeFee']
         erc20_token_amount = erc20_token_amount * multiplier_after_fees / FEE_MULTIPLIER
+
+    erc20_token_amount = erc20_token_amount * TOKEN_PRICE_MULTIPLIER / token_price
 
     self.balanceOf[msg.sender] -= stableswap_token_amount
     self.balanceOf[self.owner] += ownerFee
@@ -182,6 +184,7 @@ def swapTokens(input_token: address, output_token: address, erc20_input_amount: 
 def updateInputToken(token_address: address, allowed: bool) -> bool:
     assert msg.sender == self.owner
     assert not self.inputTokens[token_address] == allowed
+    assert ERC20(token_address).decimals() >= 2
     self.inputTokens[token_address] = allowed
     return True
 
@@ -189,6 +192,7 @@ def updateInputToken(token_address: address, allowed: bool) -> bool:
 def updateOutputToken(token_address: address, allowed: bool) -> bool:
     assert msg.sender == self.owner
     assert not self.outputTokens[token_address] == allowed
+    assert ERC20(token_address).decimals() >= 2
     self.outputTokens[token_address] = allowed
     return True
 
