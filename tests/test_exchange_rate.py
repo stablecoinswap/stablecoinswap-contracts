@@ -24,7 +24,7 @@ def test_exchange_rate(w3, contract, price_oracle, DAI_token, GUSD_token, USDC_t
 
   # DAI -> USDC: 1.0171414141
   # we have 10 decimals here because the number of decimals is:
-  # EXCHANGE_RATE_MULTIPLIER_POW - base_token.decimals + quote_token.decimals
+  # EXCHANGE_RATE_MULTIPLIER_POW - input_token.decimals + output_token.decimals
   # (22 - 18 + 6)
   assert contract.tokenExchangeRateAfterFees(DAI_token.address, USDC_token.address) == 10171414141
   # USDC -> DAI: 0.9772574257425742574257425742574257
