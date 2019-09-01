@@ -11,6 +11,7 @@ contract PriceOracle():
 
 TOKEN_PRICE_MULTIPLIER: constant(uint256) = 100000000
 FEE_MULTIPLIER: constant(uint256) = 100000
+EXCHANGE_RATE_MULTIPLIER: constant(uint256) = 10000000000000000000000 #10**22
 
 # ERC20 events
 Transfer: event({_from: indexed(address), _to: indexed(address), _value: uint256})
@@ -137,17 +138,15 @@ def tokenExchangeRateAfterFees(input_token_address: address, output_token_addres
     input_token_price: uint256 = self.tokenPrice(input_token_address)
     output_token_price: uint256 = self.tokenPrice(output_token_address)
 
-    # contract_token_amount is an equivalent of an input multiplied by TOKEN_PRICE_MULTIPLIER
-    contract_token_amount: uint256 = 10 ** ERC20(input_token_address).decimals() * input_token_price
-    fees: uint256 = contract_token_amount * (self.feesInt['tradeFee'] + self.feesInt['ownerFee']) / FEE_MULTIPLIER
-    exchange_rate: uint256 = (contract_token_amount - fees) / output_token_price
+    multiplier_after_fees: uint256 = FEE_MULTIPLIER - self.feesInt['ownerFee'] - self.feesInt['tradeFee']
+    exchange_rate: uint256 = EXCHANGE_RATE_MULTIPLIER * input_token_price * multiplier_after_fees / FEE_MULTIPLIER / output_token_price
 
     return exchange_rate
 
 @public
 @constant
 def tokenOutputAmountAfterFees(input_token_amount: uint256, input_token_address: address, output_token_address: address) -> uint256:
-    output_token_amount: uint256 = input_token_amount * self.tokenExchangeRateAfterFees(input_token_address, output_token_address) / 10 ** ERC20(input_token_address).decimals()
+    output_token_amount: uint256 = input_token_amount * self.tokenExchangeRateAfterFees(input_token_address, output_token_address) / EXCHANGE_RATE_MULTIPLIER
     return output_token_amount
 
 # Trade one erc20 token for another
@@ -159,8 +158,10 @@ def swapTokens(input_token: address, output_token: address, erc20_input_amount: 
     assert self.permissions["tradingAllowed"]
 
     input_token_price: uint256 = self.tokenPrice(input_token)
-    tradeFee: uint256 = erc20_input_amount * input_token_price * self.feesInt['tradeFee'] / FEE_MULTIPLIER / TOKEN_PRICE_MULTIPLIER
-    ownerFee: uint256 = erc20_input_amount * input_token_price * self.feesInt['ownerFee'] / FEE_MULTIPLIER / TOKEN_PRICE_MULTIPLIER
+    # input_usd_value is a value of input multiplied by TOKEN_PRICE_MULTIPLIER
+    input_usd_value: uint256 = erc20_input_amount * input_token_price
+    tradeFee: uint256 = input_usd_value * self.feesInt['tradeFee'] / FEE_MULTIPLIER / TOKEN_PRICE_MULTIPLIER
+    ownerFee: uint256 = input_usd_value * self.feesInt['ownerFee'] / FEE_MULTIPLIER / TOKEN_PRICE_MULTIPLIER
 
     pool_size_after_swap: uint256 = PriceOracle(self.priceOracleAddress).poolSize(self) + tradeFee
     new_owner_shares: uint256 = self.totalSupply * ownerFee / pool_size_after_swap
