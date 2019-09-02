@@ -70,7 +70,7 @@ def tokenPrice(token_address: address) -> uint256:
 
 # Deposit erc20 token
 @public
-def addLiquidity(token_address: address, erc20_token_amount: uint256, deadline: timestamp) -> bool:
+def addLiquidity(token_address: address, erc20_token_amount: uint256, deadline: timestamp) -> uint256:
     assert self.inputTokens[token_address]
     assert deadline > block.timestamp and erc20_token_amount > 0
     assert self.permissions["liquidityAddingAllowed"]
@@ -92,11 +92,11 @@ def addLiquidity(token_address: address, erc20_token_amount: uint256, deadline: 
 
     log.LiquidityAdded(msg.sender, new_liquidity)
 
-    return True
+    return new_liquidity
 
 # Withdraw erc20 token
 @public
-def removeLiquidity(token_address: address, stableswap_token_amount: uint256, erc20_min_output_amount: uint256, deadline: timestamp) -> bool:
+def removeLiquidity(token_address: address, stableswap_token_amount: uint256, erc20_min_output_amount: uint256, deadline: timestamp) -> uint256:
     assert self.outputTokens[token_address]
     assert stableswap_token_amount > 0 and deadline > block.timestamp
     assert self.balanceOf[msg.sender] >= stableswap_token_amount
@@ -129,7 +129,7 @@ def removeLiquidity(token_address: address, stableswap_token_amount: uint256, er
 
     log.LiquidityRemoved(msg.sender, stableswap_token_amount)
 
-    return True
+    return erc20_token_amount
 
 # Note that due to rounding, the fees could be slightly higher for the tokens with smaller decimal precision.
 @public
@@ -151,7 +151,7 @@ def tokenOutputAmountAfterFees(input_token_amount: uint256, input_token_address:
 
 # Trade one erc20 token for another
 @public
-def swapTokens(input_token: address, output_token: address, erc20_input_amount: uint256, erc20_min_output_amount: uint256, deadline: timestamp) -> bool:
+def swapTokens(input_token: address, output_token: address, erc20_input_amount: uint256, erc20_min_output_amount: uint256, deadline: timestamp) -> uint256:
     assert self.inputTokens[input_token] and self.outputTokens[output_token]
     assert erc20_input_amount > 0 and erc20_min_output_amount > 0
     assert deadline > block.timestamp
@@ -180,7 +180,7 @@ def swapTokens(input_token: address, output_token: address, erc20_input_amount: 
 
     log.Trade(input_token, output_token, erc20_input_amount)
 
-    return True
+    return erc20_output_amount
 
 @public
 def updateInputToken(token_address: address, allowed: bool) -> bool:
