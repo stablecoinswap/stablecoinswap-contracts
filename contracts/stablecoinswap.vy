@@ -24,7 +24,6 @@ Trade: event({input_token: indexed(address), output_token: indexed(address), inp
 PermissionUpdated: event({name: indexed(string[32]), value: indexed(bool)})
 FeeUpdated: event({name: indexed(string[32]), value: indexed(decimal)})
 PriceOracleAddressUpdated: event({new_address: indexed(address)})
-Payment: event({amount: uint256(wei), _from: indexed(address)})
 
 name: public(string[32])                                 # Stablecoinswap
 symbol: public(string[6])                                # STL
