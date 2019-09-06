@@ -69,6 +69,7 @@ def tokenPrice(token_address: address) -> uint256:
 
 # Deposit erc20 token
 @public
+@nonreentrant('lock')
 def addLiquidity(token_address: address, erc20_token_amount: uint256, deadline: timestamp) -> uint256:
     assert self.inputTokens[token_address]
     assert deadline > block.timestamp and erc20_token_amount > 0
@@ -95,6 +96,7 @@ def addLiquidity(token_address: address, erc20_token_amount: uint256, deadline: 
 
 # Withdraw erc20 token
 @public
+@nonreentrant('lock')
 def removeLiquidity(token_address: address, stableswap_token_amount: uint256, erc20_min_output_amount: uint256, deadline: timestamp) -> uint256:
     assert self.outputTokens[token_address]
     assert stableswap_token_amount > 0 and deadline > block.timestamp
@@ -150,6 +152,7 @@ def tokenOutputAmountAfterFees(input_token_amount: uint256, input_token_address:
 
 # Trade one erc20 token for another
 @public
+@nonreentrant('lock')
 def swapTokens(input_token: address, output_token: address, erc20_input_amount: uint256, erc20_min_output_amount: uint256, deadline: timestamp) -> uint256:
     assert self.inputTokens[input_token] and self.outputTokens[output_token]
     assert erc20_input_amount > 0 and erc20_min_output_amount > 0

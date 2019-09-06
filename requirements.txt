@@ -1,4 +1,4 @@
-vyper==0.1.0b9
+vyper==0.1.0b11
 web3==4.8.2
 py-evm==0.2.0a34
 eth-tester[py-evm]==0.1.0b33
