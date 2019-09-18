@@ -22,7 +22,6 @@ TokenAddressUpdated: event({token_address: indexed(address), token_index: indexe
 name: public(string[16])
 owner: public(address)
 supportedTokens: public(address[5])
-allowedTokens: public(map(address, bool))
 daiAddress: public(address)
 daiOracleAddress: public(address)
 
@@ -33,7 +32,6 @@ def __init__(dai_address: address, dai_oracle_address: address):
 
     self.daiAddress = dai_address
     self.daiOracleAddress = dai_oracle_address
-    self.allowedTokens[dai_address] = True
     self.supportedTokens[0] = dai_address
     self.owner = msg.sender
     self.name = 'PriceOracle'
@@ -41,7 +39,6 @@ def __init__(dai_address: address, dai_oracle_address: address):
 @private
 @constant
 def _normalized_token_price(token_address: address) -> uint256:
-    assert self.allowedTokens[token_address]
     token_price: uint256
     token_decimals: uint256 = ERC20(token_address).decimals()
     
@@ -60,7 +57,6 @@ def _normalized_token_price(token_address: address) -> uint256:
 @public
 @constant
 def normalized_token_prices(token_address: address) -> uint256:
-    assert self.allowedTokens[token_address]
     result: uint256 = self._normalized_token_price(token_address)
     return result
 
@@ -85,16 +81,6 @@ def updateTokenAddress(token_address: address, ind: int128) -> bool:
     assert msg.sender == self.owner
 
     self.supportedTokens[ind] = token_address
-    self.allowedTokens[token_address] = True
     log.TokenAddressUpdated(token_address, ind)
-
-    return True
-
-@public
-def disallowToken(token_address: address) -> bool:
-    assert msg.sender == self.owner
-    assert self.allowedTokens[token_address]
-
-    self.allowedTokens[token_address] = False
 
     return True
