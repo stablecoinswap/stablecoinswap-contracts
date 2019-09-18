@@ -21,8 +21,6 @@ def g_priceInfo() -> PriceInfo:
 @public
 def updatePrice(_price: uint256) -> PriceInfo:
     assert msg.sender == self.owner
-    assert _price >= 950000000000000000
-    assert _price <= 1050000000000000000
     self.price = _price
     self.lastUpdate = block.number
     pi: PriceInfo = PriceInfo({price: self.price, lastUpdate: self.lastUpdate})
