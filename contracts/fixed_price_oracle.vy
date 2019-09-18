@@ -36,9 +36,9 @@ def __init__(dai_address: address, dai_oracle_address: address):
     self.owner = msg.sender
     self.name = 'PriceOracle'
     
-@private
+@public
 @constant
-def _normalized_token_price(token_address: address) -> uint256:
+def normalized_token_prices(token_address: address) -> uint256:
     token_price: uint256
     token_decimals: uint256 = ERC20(token_address).decimals()
     
@@ -56,12 +56,6 @@ def _normalized_token_price(token_address: address) -> uint256:
 
 @public
 @constant
-def normalized_token_prices(token_address: address) -> uint256:
-    result: uint256 = self._normalized_token_price(token_address)
-    return result
-
-@public
-@constant
 def poolSize(contract_address: address) -> uint256:
     token_address: address
     normalized_price: uint256
@@ -71,7 +65,7 @@ def poolSize(contract_address: address) -> uint256:
         token_address = self.supportedTokens[ind]
         if token_address != ZERO_ADDRESS:
             contract_balance: uint256 = ERC20(token_address).balanceOf(contract_address)
-            normalized_price = self._normalized_token_price(token_address)
+            normalized_price = self.normalized_token_prices(token_address)
             total += contract_balance * normalized_price / PRICE_MULTIPLIER
 
     return total
