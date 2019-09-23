@@ -115,6 +115,12 @@ def fixed_contract(w3, DAI_token, GUSD_token, USDC_token, fixed_price_oracle):
     return contract
 
 @pytest.fixture
+def proxy_contract(w3, fixed_contract):
+    args = [fixed_contract.address]
+    contract = create_contract(w3, 'contracts/proxy.vy', *args)
+    return contract
+
+@pytest.fixture
 def assert_fail():
     def assert_fail(func):
         with raises(Exception):
