@@ -424,7 +424,7 @@ contract DaiPriceOracle {
     // ============ Public Functions ============
     function updatePrice(uint newPrice) public returns (PriceInfo memory){
         g_priceInfo = PriceInfo({
-            price: Math.to128(newPrice.value),
+            price: Math.to128(newPrice),
             lastUpdate: Math.to32(block.timestamp)
         });
 	
