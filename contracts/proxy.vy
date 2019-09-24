@@ -45,7 +45,12 @@ def tokenExchangeRateAfterFees(input_token_address: address, output_token_addres
 @public
 @constant
 def tokenOutputAmountAfterFees(input_token_amount: uint256, input_token_address: address, output_token_address: address) -> uint256:
-    output_token_amount: uint256 = input_token_amount * self.tokenExchangeRateAfterFees(input_token_address, output_token_address) / EXCHANGE_RATE_MULTIPLIER
+    # we can't just multiply all fees here because we round fee up
+    multiplier_after_fee: uint256 = FEE_MULTIPLIER - self.feeInt
+    input_amount_after_fee: uint256 = input_token_amount * multiplier_after_fee / FEE_MULTIPLIER
+    stablecoinswap_rate: uint256 = Stablecoinswap(self.stablecoinswapAddress).tokenExchangeRateAfterFees(input_token_address, output_token_address)
+
+    output_token_amount: uint256 = input_amount_after_fee * stablecoinswap_rate / EXCHANGE_RATE_MULTIPLIER
     return output_token_amount
 
 # Trade one erc20 token for another
@@ -55,9 +60,10 @@ def swapTokens(input_token: address, output_token: address, erc20_input_amount: 
     transfer_from_user_result: bool = ERC20(input_token).transferFrom(msg.sender, self, erc20_input_amount)
     assert transfer_from_user_result
 
-    fee_amount: uint256 = erc20_input_amount * self.feeInt / FEE_MULTIPLIER
-    input_amount_after_fee: uint256 = erc20_input_amount - fee_amount
-    
+    multiplier_after_fee: uint256 = FEE_MULTIPLIER - self.feeInt
+    input_amount_after_fee: uint256 = erc20_input_amount * multiplier_after_fee / FEE_MULTIPLIER
+    fee_amount: uint256 = erc20_input_amount - input_amount_after_fee
+
     # set allowance if necessary
     stablecoinswap_allowance: uint256 = ERC20(input_token).allowance(self, self.stablecoinswapAddress)
     if (stablecoinswap_allowance < input_amount_after_fee):
