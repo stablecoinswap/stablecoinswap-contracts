@@ -21,7 +21,7 @@ TokenAddressUpdated: event({token_address: indexed(address), token_index: indexe
 
 name: public(string[16])
 owner: public(address)
-supportedTokens: public(address[5])
+supportedTokens: public(address[10])
 daiAddress: public(address)
 daiOracleAddress: public(address)
 
@@ -35,13 +35,13 @@ def __init__(dai_address: address, dai_oracle_address: address):
     self.supportedTokens[0] = dai_address
     self.owner = msg.sender
     self.name = 'PriceOracle'
-    
+
 @public
 @constant
 def normalized_token_prices(token_address: address) -> uint256:
     token_price: uint256
     token_decimals: uint256 = ERC20(token_address).decimals()
-    
+
     if token_address != self.daiAddress:
         token_price = PRICE_MULTIPLIER
     else:
@@ -49,7 +49,7 @@ def normalized_token_prices(token_address: address) -> uint256:
         token_price = price_info.price
         assert token_price >= MIN_DAI_PRICE
         assert token_price <= MAX_DAI_PRICE
-        token_price = token_price / DAI_ORACLE_DIVIDER    
+        token_price = token_price / DAI_ORACLE_DIVIDER
 
     normalized_price: uint256 = token_price * 10**(18 - token_decimals)
     return normalized_price
@@ -61,7 +61,7 @@ def poolSize(contract_address: address) -> uint256:
     normalized_price: uint256
     total: uint256 = 0
 
-    for ind in range(5):
+    for ind in range(10):
         token_address = self.supportedTokens[ind]
         if token_address != ZERO_ADDRESS:
             contract_balance: uint256 = ERC20(token_address).balanceOf(contract_address)

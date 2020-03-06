@@ -67,6 +67,34 @@ def tokenPrice(token_address: address) -> uint256:
 
     return token_price
 
+# Required to support tokens (such s USDT) which don't provide a return value for transfer functions
+@private
+def transferAndCheck(token: address, recipient: address, amount: uint256) -> bool:
+    self_balance: uint256 = ERC20(token).balanceOf(self)
+    recipient_balance: uint256 = ERC20(token).balanceOf(recipient)
+    ERC20(token).transfer(recipient, amount)
+    new_self_balance: uint256 = ERC20(token).balanceOf(self)
+    new_recipient_balance: uint256 = ERC20(token).balanceOf(recipient)
+
+    assert new_recipient_balance == (recipient_balance + amount)
+    assert new_self_balance == (self_balance - amount)
+
+    return True
+
+# Required to support tokens (such s USDT) which don't provide a return value for transfer functions
+@private
+def transferFromAndCheck(token: address, sender: address, recipient: address, amount: uint256) -> bool:
+    recipient_balance: uint256 = ERC20(token).balanceOf(recipient)
+    sender_balance: uint256 = ERC20(token).balanceOf(sender)
+    ERC20(token).transferFrom(sender, recipient, amount)
+    new_recipient_balance: uint256 = ERC20(token).balanceOf(recipient)
+    new_sender_balance: uint256 = ERC20(token).balanceOf(sender)
+
+    assert new_sender_balance == (sender_balance - amount)
+    assert new_recipient_balance == (recipient_balance + amount)
+
+    return True
+
 # Deposit erc20 token
 @public
 @nonreentrant('lock')
@@ -87,7 +115,7 @@ def addLiquidity(token_address: address, erc20_token_amount: uint256, deadline: 
     self.totalSupply += new_liquidity
 
     # Can't assert the result directly: https://github.com/ethereum/vyper/issues/1468
-    transfer_from_result: bool = ERC20(token_address).transferFrom(msg.sender, self, erc20_token_amount)
+    transfer_from_result: bool = self.transferFromAndCheck(token_address, msg.sender, self, erc20_token_amount)
     assert transfer_from_result
 
     log.LiquidityAdded(msg.sender, new_liquidity)
@@ -125,7 +153,7 @@ def removeLiquidity(token_address: address, stableswap_token_amount: uint256, er
     assert erc20_token_amount >= erc20_min_output_amount
 
     # Can't assert the result directly: https://github.com/ethereum/vyper/issues/1468
-    transfer_result: bool = ERC20(token_address).transfer(msg.sender, erc20_token_amount)
+    transfer_result: bool = self.transferAndCheck(token_address, msg.sender, erc20_token_amount)
     assert transfer_result
 
     log.LiquidityRemoved(msg.sender, stableswap_token_amount)
@@ -175,9 +203,10 @@ def swapTokens(input_token: address, output_token: address, erc20_input_amount: 
     self.totalSupply += new_owner_shares
 
     # Can't assert the result directly: https://github.com/ethereum/vyper/issues/1468
-    transfer_from_result: bool = ERC20(input_token).transferFrom(msg.sender, self, erc20_input_amount)
+    transfer_from_result: bool = self.transferFromAndCheck(input_token, msg.sender, self, erc20_input_amount)
     assert transfer_from_result
-    transfer_result: bool = ERC20(output_token).transfer(msg.sender, erc20_output_amount)
+
+    transfer_result: bool = self.transferAndCheck(output_token, msg.sender, erc20_output_amount)
     assert transfer_result
 
     log.Trade(input_token, output_token, erc20_input_amount)
